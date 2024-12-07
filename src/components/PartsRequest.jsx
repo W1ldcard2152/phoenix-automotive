@@ -60,6 +60,7 @@ const VEHICLE_SYSTEMS = {
 };
 
 const PartsRequest = () => {
+  // State Management
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -87,6 +88,7 @@ const PartsRequest = () => {
     }
   });
 
+  // VIN Decoding Function
   const decodeVin = async (vin) => {
     try {
       setLoading(true);
@@ -130,6 +132,58 @@ const PartsRequest = () => {
     }
   };
 
+  // Form Submission Handler
+  const handleSubmit = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const requestData = {
+        vin: formData.vin,
+        vehicleInfo: {
+          year: parseInt(formData.vehicleInfo.year),
+          make: formData.vehicleInfo.make,
+          model: formData.vehicleInfo.model,
+          trim: formData.vehicleInfo.trim,
+          engineSize: formData.vehicleInfo.engineSize
+        },
+        partDetails: {
+          system: formData.partDetails.system,
+          component: formData.partDetails.component,
+          otherComponent: formData.partDetails.component?.includes('Other') 
+            ? formData.partDetails.otherComponent 
+            : undefined,
+          additionalInfo: formData.partDetails.additionalInfo
+        },
+        customerInfo: {
+          name: formData.customerInfo.name,
+          phone: formData.customerInfo.phone,
+          email: formData.customerInfo.email.toLowerCase()
+        }
+      };
+  
+      const data = await apiClient.partRequests.create(requestData);
+      
+      // No need to parse response.json() since apiClient handles that
+      console.log('Part request submitted successfully:', data);
+      setSuccess(true);
+      setFormData({
+        vin: '',
+        vehicleInfo: { year: '', make: '', model: '', trim: '', engineSize: '' },
+        partDetails: { system: '', component: '', otherComponent: '', additionalInfo: '' },
+        customerInfo: { name: '', phone: '', email: '' }
+      });
+      
+    } catch (err) {
+      console.error('Submit error:', err);
+      setError(err.message);
+      setSuccess(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Form Input Handlers
   const handleVinSubmit = async () => {
     if (formData.vin.length !== 17) {
       setError("Please enter a valid 17-character VIN");
@@ -139,27 +193,6 @@ const PartsRequest = () => {
     const success = await decodeVin(formData.vin);
     if (success) {
       nextStep();
-    }
-  };
-
-  const handleSubmit = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await apiClient.partRequests.create(formData);
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to submit request');
-      }
-      
-      setSuccess(true);
-      // Could redirect or show success message here
-    } catch (err) {
-      setError(err.message);
-      setSuccess(false);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -196,9 +229,11 @@ const PartsRequest = () => {
     }
   };
 
+  // Navigation Handlers
   const nextStep = () => setStep(prev => prev + 1);
   const prevStep = () => setStep(prev => prev - 1);
 
+  // Step Renderer
   const renderStep = () => {
     switch (step) {
       case 1:
@@ -394,99 +429,99 @@ const PartsRequest = () => {
                 <div className="space-y-2">
                   <Label htmlFor="customerName">Full Name</Label>
                   <Input
-                    id="customerName"
-                    name="name"
-                    value={formData.customerInfo.name}
-                    onChange={handleInputChange('name', 'customerInfo')}
-                    required
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    value={formData.customerInfo.phone}
-                    onChange={handleInputChange('phone', 'customerInfo')}
-                    required
-                  />
-                </div>
+                   id="customerName"
+                   name="name"
+                   value={formData.customerInfo.name}
+                   onChange={handleInputChange('name', 'customerInfo')}
+                   required
+                 />
+               </div>
+               
+               <div className="space-y-2">
+                 <Label htmlFor="phone">Phone Number</Label>
+                 <Input
+                   id="phone"
+                   name="phone"
+                   type="tel"
+                   value={formData.customerInfo.phone}
+                   onChange={handleInputChange('phone', 'customerInfo')}
+                   required
+                 />
+               </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={formData.customerInfo.email}
-                    onChange={handleInputChange('email', 'customerInfo')}
-                    required
-                  />
-                </div>
+               <div className="space-y-2">
+                 <Label htmlFor="email">Email Address</Label>
+                 <Input
+                   id="email"
+                   name="email"
+                   type="email"
+                   value={formData.customerInfo.email}
+                   onChange={handleInputChange('email', 'customerInfo')}
+                   required
+                 />
+               </div>
 
-                {error && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
+               {error && (
+                 <Alert variant="destructive">
+                   <AlertCircle className="h-4 w-4" />
+                   <AlertDescription>{error}</AlertDescription>
+                 </Alert>
+               )}
 
-                {success && (
-                  <Alert>
-                    <AlertDescription>
-                      Your part request has been submitted successfully. We will contact you shortly.
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-between">
-              <Button variant="outline" onClick={prevStep}>Previous</Button>
-              <Button 
-                onClick={handleSubmit}
-                disabled={loading || !formData.customerInfo.name || 
-                  !formData.customerInfo.phone || !formData.customerInfo.email}
-              >
-                {loading ? 'Submitting...' : 'Submit Request'}
-              </Button>
-            </CardFooter>
-          </>
-        );
-    }
-  };
+               {success && (
+                 <Alert>
+                   <AlertDescription>
+                     Your part request has been submitted successfully. We will contact you shortly.
+                   </AlertDescription>
+                 </Alert>
+               )}
+             </div>
+           </CardContent>
+           <CardFooter className="flex justify-between">
+             <Button variant="outline" onClick={prevStep}>Previous</Button>
+             <Button 
+               onClick={handleSubmit}
+               disabled={loading || !formData.customerInfo.name || 
+                 !formData.customerInfo.phone || !formData.customerInfo.email}
+             >
+               {loading ? 'Submitting...' : 'Submit Request'}
+             </Button>
+           </CardFooter>
+         </>
+       );
+   }
+ };
 
-  return (
-    <div className="min-h-screen">
-      {/* Hero Banner */}
-      <div className="relative bg-[#1a1f2e] py-16">
-        <div className="absolute inset-0">
-          <img
-            src="/images/parts-request-bg.jpg"
-            alt="Parts Request Background"
-            className="w-full h-full object-cover opacity-40"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/50 to-transparent" />
-        </div>
-        <div className="relative">
-          <div className="container mx-auto px-4 text-center">
-            <h1 className="text-4xl font-bold text-white mb-4">Request Parts</h1>
-            <p className="text-xl text-white/90 max-w-2xl mx-auto">
-              Looking for a specific part? Fill out our request form below and our team will check availability and contact you with pricing.
-            </p>
-          </div>
-        </div>
-      </div>
+ return (
+   <div className="min-h-screen">
+     {/* Hero Banner */}
+     <div className="relative bg-[#1a1f2e] py-16">
+       <div className="absolute inset-0">
+         <img
+           src="/images/parts-request-bg.jpg"
+           alt="Parts Request Background"
+           className="w-full h-full object-cover opacity-40"
+         />
+         <div className="absolute inset-0 bg-gradient-to-r from-black/50 to-transparent" />
+       </div>
+       <div className="relative">
+         <div className="container mx-auto px-4 text-center">
+           <h1 className="text-4xl font-bold text-white mb-4">Request Parts</h1>
+           <p className="text-xl text-white/90 max-w-2xl mx-auto">
+             Looking for a specific part? Fill out our request form below and our team will check availability and contact you with pricing.
+           </p>
+         </div>
+       </div>
+     </div>
 
-      {/* Form Section */}
-      <div className="container mx-auto px-4 py-12">
-        <Card className="max-w-2xl mx-auto shadow-xl">
-          {renderStep()}
-        </Card>
-      </div>
-    </div>
-  );
+     {/* Form Section */}
+     <div className="container mx-auto px-4 py-12">
+       <Card className="max-w-2xl mx-auto shadow-xl">
+         {renderStep()}
+       </Card>
+     </div>
+   </div>
+ );
 };
 
 export default PartsRequest;

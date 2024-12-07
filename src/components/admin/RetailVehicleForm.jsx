@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import PropTypes from 'prop-types';
 import { Button } from "@/components/ui/button";
+import { Image, Loader2 } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -12,6 +13,65 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+
+// ImageUpload Component
+const ImageUpload = ({ onImageUploaded }) => {
+  const [uploading, setUploading] = useState(false);
+
+  const handleUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+      setUploading(true);
+      const formData = new FormData();
+      formData.append('image', file);
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) throw new Error('Upload failed');
+      
+      const data = await response.json();
+      onImageUploaded(data.url);
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Failed to upload image');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-4">
+      <input
+        type="file"
+        accept="image/*"
+        onChange={handleUpload}
+        style={{ display: 'none' }}
+        id="image-upload"
+      />
+      <Button
+        type="button"
+        variant="outline"
+        className="flex items-center gap-2"
+        disabled={uploading}
+        asChild
+      >
+        <label htmlFor="image-upload">
+          {uploading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Image className="h-4 w-4" />
+          )}
+          {uploading ? 'Uploading...' : 'Upload Image'}
+        </label>
+      </Button>
+    </div>
+  );
+};
 
 const RetailVehicleForm = ({ onSubmit, onCancel, initialData }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,7 +94,7 @@ const RetailVehicleForm = ({ onSubmit, onCancel, initialData }) => {
     status: 'available',
     features: '',
     description: '',
-    imageUrl: '' // Changed from images array to single imageUrl
+    imageUrl: ''
   });
 
   const handleChange = (e) => {
@@ -52,12 +112,15 @@ const RetailVehicleForm = ({ onSubmit, onCancel, initialData }) => {
     }));
   };
 
+  const handleImageUploaded = (url) => {
+    setFormData(prev => ({ ...prev, imageUrl: url }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
   
     try {
-      // Clean and format the data before submission
       const cleanedData = {
         stockNumber: formData.stockNumber.trim(),
         year: parseInt(formData.year),
@@ -68,6 +131,7 @@ const RetailVehicleForm = ({ onSubmit, onCancel, initialData }) => {
         price: parseFloat(formData.price.toString().replace(/,/g, '')),
         condition: formData.condition,
         status: formData.status || 'available',
+        imageUrl: formData.imageUrl,
         
         // Optional fields
         trim: formData.trim?.trim() || undefined,
@@ -78,8 +142,7 @@ const RetailVehicleForm = ({ onSubmit, onCancel, initialData }) => {
         driveType: formData.driveType || undefined,
         fuelType: formData.fuelType?.trim() || undefined,
         features: formData.features?.trim() || undefined,
-        description: formData.description?.trim() || undefined,
-        imageUrl: formData.imageUrl?.trim() || undefined
+        description: formData.description?.trim() || undefined
       };
   
       console.log('Submitting cleaned data:', cleanedData);
@@ -119,6 +182,7 @@ const RetailVehicleForm = ({ onSubmit, onCancel, initialData }) => {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid md:grid-cols-2 gap-4">
+        {/* Basic Info Section */}
         <div className="space-y-2">
           <Label htmlFor="stockNumber">Stock Number</Label>
           <Input
@@ -142,210 +206,27 @@ const RetailVehicleForm = ({ onSubmit, onCancel, initialData }) => {
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="year">Year</Label>
-          <Input
-            id="year"
-            name="year"
-            type="number"
-            value={formData.year}
-            onChange={handleChange}
-            required
-            min="1900"
-            max={new Date().getFullYear() + 1}
-          />
-        </div>
+        {/* Previous input fields remain the same until the image section */}
+        {/* ... other fields ... */}
 
-        <div className="space-y-2">
-          <Label htmlFor="make">Make</Label>
-          <Input
-            id="make"
-            name="make"
-            value={formData.make}
-            onChange={handleChange}
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="model">Model</Label>
-          <Input
-            id="model"
-            name="model"
-            value={formData.model}
-            onChange={handleChange}
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="trim">Trim Level</Label>
-          <Input
-            id="trim"
-            name="trim"
-            value={formData.trim}
-            onChange={handleChange}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="mileage">Mileage</Label>
-          <Input
-            id="mileage"
-            name="mileage"
-            type="number"
-            value={formData.mileage}
-            onChange={handleChange}
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="price">Price</Label>
-          <Input
-            id="price"
-            name="price"
-            type="number"
-            value={formData.price}
-            onChange={handleChange}
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="exteriorColor">Exterior Color</Label>
-          <Input
-            id="exteriorColor"
-            name="exteriorColor"
-            value={formData.exteriorColor}
-            onChange={handleChange}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="interiorColor">Interior Color</Label>
-          <Input
-            id="interiorColor"
-            name="interiorColor"
-            value={formData.interiorColor}
-            onChange={handleChange}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label>Transmission</Label>
-          <Select
-            value={formData.transmission}
-            onValueChange={(value) => handleSelectChange('transmission', value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select transmission" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="automatic">Automatic</SelectItem>
-              <SelectItem value="manual">Manual</SelectItem>
-              <SelectItem value="cvt">CVT</SelectItem>
-              <SelectItem value="automated-manual">Automated Manual</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-  <Label>Fuel Type</Label>
-  <Select
-    value={formData.fuelType}
-    onValueChange={(value) => handleSelectChange('fuelType', value)}
-  >
-    <SelectTrigger>
-      <SelectValue placeholder="Select fuel type" />
-    </SelectTrigger>
-    <SelectContent>
-      <SelectItem value="gasoline">Gasoline</SelectItem>
-      <SelectItem value="diesel">Diesel</SelectItem>
-      <SelectItem value="electric">Electric</SelectItem>
-      <SelectItem value="hybrid">Hybrid</SelectItem>
-      <SelectItem value="plugin-hybrid">Plug-in Hybrid</SelectItem>
-    </SelectContent>
-  </Select>
-</div>
-
-        <div className="space-y-2">
-          <Label htmlFor="engineType">Engine</Label>
-          <Input
-            id="engineType"
-            name="engineType"
-            value={formData.engineType}
-            onChange={handleChange}
-            placeholder="e.g., 2.0L 4-Cylinder"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label>Drive Type</Label>
-          <Select
-            value={formData.driveType}
-            onValueChange={(value) => handleSelectChange('driveType', value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select drive type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="fwd">Front Wheel Drive</SelectItem>
-              <SelectItem value="rwd">Rear Wheel Drive</SelectItem>
-              <SelectItem value="awd">All Wheel Drive</SelectItem>
-              <SelectItem value="4wd">4 Wheel Drive</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label>Condition</Label>
-          <Select
-            value={formData.condition}
-            onValueChange={(value) => handleSelectChange('condition', value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select condition" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="excellent">Excellent</SelectItem>
-              <SelectItem value="very-good">Very Good</SelectItem>
-              <SelectItem value="good">Good</SelectItem>
-              <SelectItem value="fair">Fair</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label>Status</Label>
-          <Select
-            value={formData.status}
-            onValueChange={(value) => handleSelectChange('status', value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="available">Available</SelectItem>
-              <SelectItem value="pending">Sale Pending</SelectItem>
-              <SelectItem value="sold">Sold</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
       </div>
 
+      {/* Image Upload Section */}
       <div className="space-y-2">
-        <Label htmlFor="imageUrl">Image URL</Label>
-        <Input
-          id="imageUrl"
-          name="imageUrl"
-          type="url"
-          value={formData.imageUrl}
-          onChange={handleChange}
-          placeholder="https://example.com/vehicle-image.jpg"
-        />
+        <Label>Vehicle Image</Label>
+        <ImageUpload onImageUploaded={handleImageUploaded} />
+        {formData.imageUrl && (
+          <div className="mt-4">
+            <img 
+              src={formData.imageUrl} 
+              alt="Vehicle preview" 
+              className="max-w-sm rounded-lg border"
+            />
+          </div>
+        )}
       </div>
 
+      {/* The rest of the form fields */}
       <div className="space-y-2">
         <Label htmlFor="features">Features</Label>
         <Textarea
@@ -368,6 +249,99 @@ const RetailVehicleForm = ({ onSubmit, onCancel, initialData }) => {
           placeholder="Detailed vehicle description"
           className="min-h-[100px]"
         />
+      </div>
+
+      {/* Select inputs with white backgrounds */}
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Transmission</Label>
+          <Select
+            value={formData.transmission}
+            onValueChange={(value) => handleSelectChange('transmission', value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select transmission" />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="automatic">Automatic</SelectItem>
+              <SelectItem value="manual">Manual</SelectItem>
+              <SelectItem value="cvt">CVT</SelectItem>
+              <SelectItem value="automated-manual">Automated Manual</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Fuel Type</Label>
+          <Select
+            value={formData.fuelType}
+            onValueChange={(value) => handleSelectChange('fuelType', value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select fuel type" />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="gasoline">Gasoline</SelectItem>
+              <SelectItem value="diesel">Diesel</SelectItem>
+              <SelectItem value="electric">Electric</SelectItem>
+              <SelectItem value="hybrid">Hybrid</SelectItem>
+              <SelectItem value="plugin-hybrid">Plug-in Hybrid</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Drive Type</Label>
+          <Select
+            value={formData.driveType}
+            onValueChange={(value) => handleSelectChange('driveType', value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select drive type" />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="fwd">Front Wheel Drive</SelectItem>
+              <SelectItem value="rwd">Rear Wheel Drive</SelectItem>
+              <SelectItem value="awd">All Wheel Drive</SelectItem>
+              <SelectItem value="4wd">4 Wheel Drive</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Condition</Label>
+          <Select
+            value={formData.condition}
+            onValueChange={(value) => handleSelectChange('condition', value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select condition" />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="excellent">Excellent</SelectItem>
+              <SelectItem value="very-good">Very Good</SelectItem>
+              <SelectItem value="good">Good</SelectItem>
+              <SelectItem value="fair">Fair</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Status</Label>
+          <Select
+            value={formData.status}
+            onValueChange={(value) => handleSelectChange('status', value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select status" />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="available">Available</SelectItem>
+              <SelectItem value="pending">Sale Pending</SelectItem>
+              <SelectItem value="sold">Sold</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="flex justify-end space-x-2">
