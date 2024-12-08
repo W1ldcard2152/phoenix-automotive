@@ -3,6 +3,28 @@ import express from 'express';
 import cors from 'cors';
 import router from './api/index.js';
 import connectDB from './api/config/db.js';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get current directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables with debug info
+const result = dotenv.config();
+console.log('Environment Loading:', {
+  currentDirectory: __dirname,
+  dotenvResult: result.error ? 'Error loading .env' : '.env loaded successfully',
+  error: result.error,
+});
+
+// Debug environment variables
+console.log('Environment Variables Check:', {
+  CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || 'not set',
+  CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY ? 'present' : 'not set',
+  CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET ? 'present' : 'not set'
+});
 
 const app = express();
 
@@ -10,6 +32,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.raw({ type: 'image/*', limit: '10mb' }));
+app.use('/api', router);
 
 // Connect to MongoDB Atlas
 connectDB()

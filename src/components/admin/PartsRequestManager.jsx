@@ -23,6 +23,7 @@ const PartsRequestManager = () => {
   const [error, setError] = useState(null);
   const [expandedRows, setExpandedRows] = useState(new Set());
 
+
   useEffect(() => {
     fetchRequests();
   }, []);

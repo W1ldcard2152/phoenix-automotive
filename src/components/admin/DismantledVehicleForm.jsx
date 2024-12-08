@@ -12,65 +12,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import ImageUpload from '../shared/ImageUpload';
 
-// ImageUpload Component
-const ImageUpload = ({ onImageUploaded }) => {
-  const [uploading, setUploading] = useState(false);
-
-  const handleUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    try {
-      setUploading(true);
-      const formData = new FormData();
-      formData.append('image', file);
-
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!response.ok) throw new Error('Upload failed');
-      
-      const data = await response.json();
-      onImageUploaded(data.url);
-    } catch (error) {
-      console.error('Upload error:', error);
-      alert('Failed to upload image');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  return (
-    <div className="flex items-center gap-4">
-      <input
-        type="file"
-        accept="image/*"
-        onChange={handleUpload}
-        style={{ display: 'none' }}
-        id="image-upload"
-      />
-      <Button
-        type="button"
-        variant="outline"
-        className="flex items-center gap-2"
-        disabled={uploading}
-        asChild
-      >
-        <label htmlFor="image-upload">
-          {uploading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Image className="h-4 w-4" />
-          )}
-          {uploading ? 'Uploading...' : 'Upload Image'}
-        </label>
-      </Button>
-    </div>
-  );
-};
 
 const VehicleForm = ({ initialData, onSubmit, onCancel }) => {
   const [vehicle, setVehicle] = useState({
