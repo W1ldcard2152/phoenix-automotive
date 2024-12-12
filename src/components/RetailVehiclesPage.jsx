@@ -83,22 +83,27 @@ const RetailVehiclesPage = () => {
       {vehicle.year} {vehicle.make} {vehicle.model} {vehicle.trim}
     </h3>
     <div className="space-y-2 mb-6">
-      {vehicle.mileage && (
-        <p className="text-gray-600">
-          <span className="font-semibold">Mileage:</span> {vehicle.mileage.toLocaleString()} miles
-        </p>
-      )}
-      {vehicle.price && (
-        <p className="text-gray-600">
-          <span className="font-semibold">Price:</span> ${vehicle.price.toLocaleString()}
-        </p>
-      )}
-      {vehicle.trim && (
-        <p className="text-gray-600">
-          <span className="font-semibold">Trim:</span> {vehicle.trim}
-        </p>
-      )}
-    </div>
+  {vehicle.price && (
+    <p className="text-gray-600">
+      <span className="font-semibold">Price:</span> ${vehicle.price.toLocaleString()}
+    </p>
+  )}
+  {vehicle.mileage && (
+    <p className="text-gray-600">
+      <span className="font-semibold">Mileage:</span> {vehicle.mileage.toLocaleString()} miles
+    </p>
+  )}
+  {vehicle.engineType && (
+    <p className="text-gray-600">
+      <span className="font-semibold">Engine:</span> {vehicle.engineType.charAt(0).toUpperCase() + vehicle.engineType.slice(1)}
+    </p>
+  )}
+  {vehicle.transmission && (
+    <p className="text-gray-600">
+      <span className="font-semibold">Transmission:</span> {vehicle.transmission.charAt(0).toUpperCase() + vehicle.transmission.slice(1)}
+    </p>
+  )}
+</div>
     <Link 
   to={`/inventory/${vehicle._id}`}
   className="bg-red-700 text-white px-6 py-3 rounded hover:bg-red-800 transition-colors inline-block"

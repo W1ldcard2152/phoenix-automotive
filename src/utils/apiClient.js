@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:3000/api'; 
+const API_BASE_URL = 'http://localhost:3000/api';
 
 const defaultHeaders = {
   'Cache-Control': 'no-cache',
@@ -9,10 +9,6 @@ const jsonHeaders = {
   ...defaultHeaders,
   'Content-Type': 'application/json'
 };
-
-
-const url = `${API_BASE_URL}/dismantled-vehicles`;
-console.log('Attempting to fetch from:', url);
 
 async function handleResponse(response) {
   if (!response.ok) {
@@ -29,6 +25,7 @@ async function handleResponse(response) {
 }
 
 export const apiClient = {
+  // Existing dismantledVehicles methods
   dismantledVehicles: {
     getAll: async () => {
       const url = `${API_BASE_URL}/dismantled-vehicles`;
@@ -80,6 +77,7 @@ export const apiClient = {
     }
   },
 
+  // Existing retailVehicles methods
   retailVehicles: {
     getAll: async () => {
       const url = `${API_BASE_URL}/retail-vehicles`;
@@ -131,8 +129,10 @@ export const apiClient = {
     }
   },
 
+  // Enhanced partRequests methods
   partRequests: {
     create: async (data) => {
+      console.log('Creating part request:', data);
       const response = await fetch(`${API_BASE_URL}/part-requests`, {
         method: 'POST',
         headers: jsonHeaders,
@@ -161,6 +161,48 @@ export const apiClient = {
     },
     getById: async (id) => {
       const response = await fetch(`${API_BASE_URL}/part-requests/${id}`, {
+        headers: defaultHeaders
+      });
+      return handleResponse(response);
+    },
+    update: async (id, data) => {
+      const response = await fetch(`${API_BASE_URL}/part-requests/${id}`, {
+        method: 'PUT',
+        headers: jsonHeaders,
+        body: JSON.stringify(data)
+      });
+      return handleResponse(response);
+    }
+  },
+
+  // New vin validation methods
+  vin: {
+    decode: async (vin) => {
+      console.log('Decoding VIN:', vin);
+      const response = await fetch(`${API_BASE_URL}/vin/decode`, {
+        method: 'POST',
+        headers: jsonHeaders,
+        body: JSON.stringify({ vin })
+      });
+      return handleResponse(response);
+    },
+    
+    validate: async (vin, vehicleInfo) => {
+      console.log('Validating VIN:', vin, vehicleInfo);
+      const response = await fetch(`${API_BASE_URL}/vin/validate`, {
+        method: 'POST',
+        headers: jsonHeaders,
+        body: JSON.stringify({ vin, vehicleInfo })
+      });
+      return handleResponse(response);
+    }
+  },
+
+  // New search methods for parts
+  parts: {
+    search: async (query) => {
+      console.log('Searching parts:', query);
+      const response = await fetch(`${API_BASE_URL}/parts/search?q=${encodeURIComponent(query)}`, {
         headers: defaultHeaders
       });
       return handleResponse(response);

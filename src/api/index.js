@@ -2,29 +2,53 @@ import { Router } from 'express';
 import multer from 'multer';
 import { v2 as cloudinary } from 'cloudinary';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import dismantledVehiclesRouter from './routes/DismantledVehicles.js';
 import retailVehiclesRouter from './routes/RetailVehicles.js';
 import partRequestsRouter from './routes/PartRequests.js';
+import vinValidationRouter from './routes/validateVin.js';
 
 const router = Router();
 
-// Configure Cloudinary
-const cloudinaryConfig = cloudinary.config();
-console.log('Cloudinary Configuration Check:', {
-  hasCloudName: !!cloudinaryConfig.cloud_name,
-  hasApiKey: !!cloudinaryConfig.api_key,
-  hasApiSecret: !!cloudinaryConfig.api_secret,
-  cloudName: cloudinaryConfig.cloud_name ? 'set' : 'missing',
-  apiKey: cloudinaryConfig.api_key ? 'set' : 'missing',
-  apiSecret: cloudinaryConfig.api_secret ? 'set' : 'missing'
-});
+// Get current directory and project root
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const projectRoot = path.resolve(__dirname, '../../');
 
-// Add this right after cloudinary.config()
-console.log('Cloudinary Configuration:', {
-  cloudName: process.env.CLOUDINARY_CLOUD_NAME ? 'Set' : 'Missing',
-  apiKey: process.env.CLOUDINARY_API_KEY ? 'Set' : 'Missing',
-  apiSecret: process.env.CLOUDINARY_API_SECRET ? 'Set' : 'Missing'
-});
+// Load environment variables
+dotenv.config({ path: path.join(projectRoot, '.env') });
+
+// Cloudinary configuration validator
+const validateCloudinaryConfig = () => {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+  });
+
+  const config = cloudinary.config();
+  const configCheck = {
+    hasCloudName: !!config.cloud_name,
+    hasApiKey: !!config.api_key,
+    hasApiSecret: !!config.api_secret,
+    cloudName: config.cloud_name ? 'set' : 'missing',
+    apiKey: config.api_key ? 'set' : 'missing',
+    apiSecret: config.api_secret ? 'set' : 'missing'
+  };
+
+  console.log('Cloudinary Configuration Check:', configCheck);
+
+  if (!configCheck.hasCloudName || !configCheck.hasApiKey || !configCheck.hasApiSecret) {
+    throw new Error('Missing required Cloudinary configuration');
+  }
+
+  return config;
+};
+
+// Initialize Cloudinary
+validateCloudinaryConfig();
 
 // Configure multer-storage-cloudinary
 const storage = new CloudinaryStorage({
@@ -34,17 +58,23 @@ const storage = new CloudinaryStorage({
     allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
     transformation: [{ width: 1000, height: 750, crop: 'limit' }],
     resource_type: 'auto',
-    format: 'jpg' // Add this to ensure consistent format
+    format: 'jpg'
   }
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  }
+});
 
-// Mount the routers at their respective paths
+// Mount routes
 console.log('Mounting routes...');
 router.use('/dismantled-vehicles', dismantledVehiclesRouter);
 router.use('/retail-vehicles', retailVehiclesRouter);
 router.use('/part-requests', partRequestsRouter);
+router.use('/vin', vinValidationRouter);
 
 // Image upload route
 router.post('/upload', upload.single('image'), async (req, res) => {
@@ -52,42 +82,37 @@ router.post('/upload', upload.single('image'), async (req, res) => {
     console.log('Upload request received:', {
       hasFile: !!req.file,
       contentType: req.headers['content-type'],
-      fileDetails: req.file ? {
-        originalname: req.file.originalname,
-        mimetype: req.file.mimetype,
-        size: req.file.size
-      } : null
+      fileDetails: req.file
     });
 
-    // Check if file exists
     if (!req.file) {
-      console.log('No file received in upload request');
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    // Log Cloudinary configuration state
-    console.log('Cloudinary config state:', {
-      hasCloudName: !!cloudinary.config().cloud_name,
-      hasApiKey: !!cloudinary.config().api_key,
-      hasApiSecret: !!cloudinary.config().api_secret
-    });
+    // Check if we have the necessary Cloudinary response properties
+    if (!req.file.path) {
+      console.error('Missing Cloudinary path in response:', req.file);
+      throw new Error('Invalid Cloudinary response');
+    }
 
-    // After successful upload
+    // Construct secure URL if not provided
+    const secureUrl = req.file.secure_url || req.file.path.replace('http://', 'https://');
+    
     console.log('File upload successful:', {
       path: req.file.path,
-      url: req.file.secure_url
+      secureUrl: secureUrl,
+      publicId: req.file.public_id
     });
 
     res.json({
-      url: req.file.secure_url,
+      url: secureUrl,
       public_id: req.file.public_id
     });
   } catch (error) {
-    // Detailed error logging
     console.error('Upload error details:', {
       message: error.message,
       stack: error.stack,
-      cloudinaryError: error.http_code ? true : false
+      fileInfo: req.file
     });
 
     res.status(500).json({
@@ -99,13 +124,22 @@ router.post('/upload', upload.single('image'), async (req, res) => {
 
 // Error handling middleware
 router.use((err, req, res, next) => {
-  console.error('Router error:', err);
+  console.error('Router error:', {
+    message: err.message,
+    stack: err.stack,
+    path: req.path
+  });
+
   if (res.headersSent) {
     return next(err);
   }
-  res.status(500).json({ error: err.message });
+
+  res.status(500).json({ 
+    error: err.message,
+    path: req.path
+  });
 });
 
-console.log('Routes mounted');
+console.log('Routes mounted successfully');
 
 export default router;

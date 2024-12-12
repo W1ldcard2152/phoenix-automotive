@@ -164,9 +164,9 @@ const VehicleDetails = () => {
                 <span>{vehicle.engineType}</span>
               </div>
               <div className="grid grid-cols-2 gap-x-4 py-2 border-b">
-  <span className="font-medium">Drive Type</span>
-  <span>{vehicle.driveType ? vehicle.driveType.toUpperCase() : 'Not Specified'}</span>
-</div>
+                <span className="font-medium">Drive Type</span>
+                <span>{vehicle.driveType.toUpperCase()}</span>
+              </div>
               <div className="grid grid-cols-2 gap-x-4 py-2 border-b">
                 <span className="font-medium">Exterior Color</span>
                 <span>{vehicle.exteriorColor}</span>

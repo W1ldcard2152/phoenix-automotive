@@ -27,7 +27,9 @@ const RetailVehicleManager = () => {
     setLoading(true);
     try {
       const response = await apiClient.retailVehicles.getAll();
-      if (!response.ok) throw new Error('Failed to fetch retail vehicles');
+      if (!response.ok) {
+        throw new Error('Failed to fetch retail vehicles');
+      }
       const data = await response.json();
       setVehicles(data);
       setError(null);
@@ -44,7 +46,9 @@ const RetailVehicleManager = () => {
     
     try {
       const response = await apiClient.retailVehicles.delete(id);
-      if (!response.ok) throw new Error('Failed to delete retail vehicle');
+      if (!response.ok) {
+        throw new Error('Failed to delete retail vehicle');
+      }
       await fetchVehicles();
     } catch (err) {
       setError(err.message);
@@ -57,33 +61,48 @@ const RetailVehicleManager = () => {
       console.log('Submitting vehicle data:', formData);
       let response;
       
+      // Remove any undefined or empty optional fields
+      const cleanedFormData = Object.fromEntries(
+        Object.entries(formData).filter(([_, value]) => 
+          value !== undefined && value !== '' && value !== null
+        )
+      );
+      
       if (editingVehicle) {
-        response = await apiClient.retailVehicles.update(editingVehicle._id, formData);
+        response = await apiClient.retailVehicles.update(editingVehicle._id, cleanedFormData);
       } else {
-        response = await apiClient.retailVehicles.create(formData);
+        response = await apiClient.retailVehicles.create(cleanedFormData);
       }
 
+      // Handle response
       if (!response.ok) {
-        const contentType = response.headers.get("content-type");
         let errorMessage = 'Failed to save retail vehicle';
         
-        if (contentType && contentType.includes("application/json")) {
+        try {
           const errorData = await response.json();
           errorMessage = errorData.message || errorData.error || errorMessage;
-        } else {
-          const errorText = await response.text();
-          console.error('Error response text:', errorText);
+        } catch {
+          // If JSON parsing fails, try to get text content
+          try {
+            const errorText = await response.text();
+            errorMessage = errorText || errorMessage;
+          } catch {
+            // If both JSON and text parsing fail, use status text
+            errorMessage = response.statusText || errorMessage;
+          }
         }
         
         throw new Error(errorMessage);
       }
 
+      // On success, refresh the list and reset form state
       await fetchVehicles();
       setIsAddingVehicle(false);
       setEditingVehicle(null);
+      setError(null);
     } catch (err) {
       console.error('Submit error:', err);
-      setError(err.message);
+      setError(err.message || 'An error occurred while saving the vehicle');
     }
   };
 
@@ -139,7 +158,6 @@ const RetailVehicleManager = () => {
               <TableHead>Make</TableHead>
               <TableHead>Model</TableHead>
               <TableHead>Price</TableHead>
-              <TableHead>Condition</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -152,7 +170,6 @@ const RetailVehicleManager = () => {
                 <TableCell>{vehicle.make}</TableCell>
                 <TableCell>{vehicle.model}</TableCell>
                 <TableCell>${vehicle.price?.toLocaleString()}</TableCell>
-                <TableCell>{vehicle.condition}</TableCell>
                 <TableCell>{vehicle.status}</TableCell>
                 <TableCell className="text-right space-x-2">
                   <Button
