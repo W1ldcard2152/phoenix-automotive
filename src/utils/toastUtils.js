@@ -1,38 +1,37 @@
-import { toast } from '@/components/ui/use-toast';
+// src/utils/toastUtils.js
+import { toast } from '@/hooks/use-toast';
 
 export const showToast = {
-  success: (message) => {
+  success: (title, description) => {
     toast({
-      title: "Success",
-      description: message,
-      variant: "success",
-      duration: 5000,
+      title,
+      description,
+      variant: 'default',
+      className: 'bg-green-50 border-green-200 text-green-800',
     });
   },
 
-  error: (message, details) => {
+  error: (title, description) => {
     toast({
-      title: "Error",
-      description: details ? `${message}: ${details}` : message,
-      variant: "destructive",
-      duration: 7000,
-    });
-  },
-
-  warning: (message) => {
-    toast({
-      title: "Warning",
-      description: message,
-      variant: "warning",
-      duration: 5000,
+      title,
+      description,
+      variant: 'destructive',
     });
   },
 
   info: (message) => {
     toast({
-      title: "Info",
       description: message,
-      duration: 3000,
+      variant: 'default',
+    });
+  },
+
+  warning: (title, description) => {
+    toast({
+      title,
+      description,
+      variant: 'default',
+      className: 'bg-yellow-50 border-yellow-200 text-yellow-800',
     });
   }
 };
