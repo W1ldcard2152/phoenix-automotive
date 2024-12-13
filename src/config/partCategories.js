@@ -61,24 +61,33 @@ export const PART_CATEGORIES = {
 
 // Helper function to get subcategories for a category
 export const getSubcategories = (category) => {
-  if (!category || !PART_CATEGORIES[category]) return {};
-  return Object.entries(PART_CATEGORIES[category].subcategories).reduce((acc, [key, value]) => {
-    acc[key] = key; // Use subcategory name as both key and display value
-    return acc;
-  }, {});
+  if (!category || !PART_CATEGORIES[category]) {
+    console.log('getSubcategories: Invalid category', category);
+    return {};
+  }
+  
+  const subcategories = PART_CATEGORIES[category].subcategories;
+  console.log('Raw subcategories from PART_CATEGORIES:', subcategories);
+  
+  // Return simple label mapping
+  const result = {};
+  Object.entries(subcategories).forEach(([key, value]) => {
+    result[key] = value.label || key;
+  });
+  
+  console.log('Processed subcategories:', result);
+  return result;
 };
-// Helper function to get parts for a subcategory
+
 export const getParts = (category, subcategory) => {
-  if (!category || !subcategory || !PART_CATEGORIES[category]?.subcategories[subcategory]) return [];
+  if (!category || !subcategory || !PART_CATEGORIES[category]?.subcategories[subcategory]) {
+    return [];
+  }
   
   const subcategoryData = PART_CATEGORIES[category].subcategories[subcategory];
-  
-  // Only return parts array if it exists and has items
-  if (Array.isArray(subcategoryData.parts) && subcategoryData.parts.length > 0) {
-    return subcategoryData.parts;
-  }
-  return [];
+  return subcategoryData.parts || [];
 };
+
 // Flatten categories for search
 export const flattenedParts = [];
 

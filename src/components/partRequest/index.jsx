@@ -76,6 +76,7 @@ const PartsRequestForm = () => {
             selectedPart={state.selectedPart}
             onCategoryChange={selectCategory}
             onSubcategoryChange={selectSubcategory}
+            onNextStep={() => nextStep()}
             onPartChange={selectPart}
             searchResults={state.searchResults}
             onSearch={setSearchQuery}

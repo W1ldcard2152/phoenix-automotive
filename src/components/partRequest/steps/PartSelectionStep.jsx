@@ -3,6 +3,8 @@ import { PART_CATEGORIES } from '@/config/partCategories';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 import SearchAutocomplete from '../ui/SearchAutocomplete';
 import CascadingSelect from '../ui/CascadingSelect';
 
@@ -19,13 +21,25 @@ const PartSelectionStep = ({
   availableSubcategories,
   availableParts,
   vehicleInfo,
-  error
+  error,
+  onNextStep
 }) => {
   const [isSearching, setIsSearching] = useState(false);
 
   const handleSearchChange = (query) => {
     setIsSearching(query.length >= 2);
     onSearch(query);
+  };
+
+  const canProceed = () => {
+    // Can proceed if category and subcategory are selected
+    // For subcategories with parts array, also require part selection
+    if (!selectedCategory || !selectedSubcategory) return false;
+    
+    const subcategory = PART_CATEGORIES[selectedCategory]?.subcategories[selectedSubcategory];
+    if (subcategory?.parts && !selectedPart) return false;
+    
+    return true;
   };
 
   return (
@@ -74,22 +88,32 @@ const PartSelectionStep = ({
 
       {/* Category Selection */}
       <CascadingSelect
-        category={selectedCategory}
-        subcategory={selectedSubcategory}
-        part={selectedPart}
-        categories={PART_CATEGORIES}
-        subcategories={availableSubcategories}
-        parts={availableParts}
-        onCategoryChange={onCategoryChange}
-        onSubcategoryChange={onSubcategoryChange}
-        onPartChange={onPartChange}
-      />
+  category={selectedCategory}
+  subcategory={selectedSubcategory}
+  part={selectedPart}
+  categories={PART_CATEGORIES}
+  subcategories={availableSubcategories}
+  onCategoryChange={onCategoryChange}
+  onSubcategoryChange={onSubcategoryChange}
+  onPartChange={onPartChange}
+/>
 
       {error && (
-        <div className="text-sm text-destructive">
-          {error}
-        </div>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
+
+      {/* Continue Button */}
+      <div className="flex justify-end pt-4">
+        <Button
+          onClick={onNextStep}
+          disabled={!canProceed()}
+        >
+          Continue
+        </Button>
+      </div>
     </div>
   );
 };

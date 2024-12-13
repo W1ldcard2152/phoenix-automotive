@@ -13,32 +13,37 @@ const CascadingSelect = ({
   part,
   categories,
   subcategories,
-  parts,
   onCategoryChange,
   onSubcategoryChange,
   onPartChange,
   disabled = false
 }) => {
+  console.log('CascadingSelect received:', {
+    category,
+    subcategories: JSON.stringify(subcategories, null, 2)
+  });
+
   return (
     <div className="space-y-4">
       <div className="space-y-2">
         <Label>Category</Label>
         <Select
           value={category || ""}
-          onValueChange={onCategoryChange}
+          onValueChange={(value) => {
+            console.log('Category selected:', value);
+            onCategoryChange(value);
+          }}
           disabled={disabled}
         >
           <SelectTrigger>
             <SelectValue placeholder="Select a category" />
           </SelectTrigger>
-          <SelectContent className="bg-white">
-            {Object.entries(categories)
-              .sort(([a], [b]) => a.localeCompare(b))
-              .map(([key, value]) => (
-                <SelectItem key={key} value={key}>
-                  {value.label}
-                </SelectItem>
-              ))}
+          <SelectContent>
+            {Object.entries(categories).map(([key, value]) => (
+              <SelectItem key={key} value={key}>
+                {value.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -54,38 +59,15 @@ const CascadingSelect = ({
             <SelectTrigger>
               <SelectValue placeholder="Select a subcategory" />
             </SelectTrigger>
-            <SelectContent className="bg-white">
-            {Object.keys(subcategories)
-  .sort()
-  .map((key) => (
-    <SelectItem key={key} value={key}>
-      {key}
-    </SelectItem>
-  ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-
-      {category && subcategory && parts.length > 0 && (
-        <div className="space-y-2">
-          <Label>Part</Label>
-          <Select
-            value={part || ""}
-            onValueChange={onPartChange}
-            disabled={disabled || !subcategory}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select a part" />
-            </SelectTrigger>
-            <SelectContent className="bg-white">
-              {parts
-                .sort()
-                .map((part) => (
-                  <SelectItem key={part} value={part}>
-                    {part}
+            <SelectContent>
+              {Object.entries(subcategories).map(([key, value]) => {
+                console.log('Rendering subcategory:', key, value);
+                return (
+                  <SelectItem key={key} value={key}>
+                    {value}
                   </SelectItem>
-                ))}
+                );
+              })}
             </SelectContent>
           </Select>
         </div>
