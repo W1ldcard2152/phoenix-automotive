@@ -1,17 +1,15 @@
 // src/utils/vinUtils.js
-
 const NHTSA_BASE_URL = 'https://vpic.nhtsa.dot.gov/api/vehicles/decodevin';
 
 export const decodeVinNHTSA = async (vin) => {
   try {
     const response = await fetch(`${NHTSA_BASE_URL}/${vin}?format=json`);
-    
+   
     if (!response.ok) {
       throw new Error('Failed to decode VIN');
     }
-
     const data = await response.json();
-    
+   
     // NHTSA specific error checking
     if (data.Message && data.Message.includes('Error')) {
       throw new Error(data.Message);
@@ -44,7 +42,8 @@ export const decodeVinNHTSA = async (vin) => {
 
 export const validateVinWithDatabase = async (vin, vehicleInfo) => {
   try {
-    const response = await fetch('/api/vehicles/validate-vin', {
+    // Updated to use the correct endpoint
+    const response = await fetch('/api/vin/validate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -56,16 +55,16 @@ export const validateVinWithDatabase = async (vin, vehicleInfo) => {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to validate VIN');
+      throw new Error('Failed to validate VIN');
     }
 
     const data = await response.json();
+    
     return {
       ...vehicleInfo,
       inInventory: data.inInventory,
       inventoryId: data.inventoryId,
-      // Add any additional fields from our database
+      inventoryType: data.inventoryType // Added to match the server response
     };
   } catch (error) {
     console.error('Database Validation Error:', error);
@@ -81,13 +80,13 @@ export const validateVinWithDatabase = async (vin, vehicleInfo) => {
 export const validateVinFormat = (vin) => {
   // Basic VIN validation rules
   if (!vin || typeof vin !== 'string') return false;
-  
+ 
   // Must be 17 characters
   if (vin.length !== 17) return false;
-  
-  // Must be alphanumeric
+ 
+  // Must be alphanumeric and exclude I, O, Q
   if (!/^[A-HJ-NPR-Z0-9]{17}$/i.test(vin)) return false;
-  
+ 
   return true;
 };
 
@@ -96,18 +95,23 @@ export const formatVin = (vin) => {
 };
 
 export const handleVinDecode = async (vin) => {
-  // Format and validate VIN
-  const formattedVin = formatVin(vin);
-  
-  if (!validateVinFormat(formattedVin)) {
-    throw new Error('Invalid VIN format');
-  }
+  try {
+    // Format and validate VIN
+    const formattedVin = formatVin(vin);
+   
+    if (!validateVinFormat(formattedVin)) {
+      throw new Error('Invalid VIN format');
+    }
 
-  // Step 1: Decode with NHTSA
-  const nhtsaInfo = await decodeVinNHTSA(formattedVin);
-  
-  // Step 2: Validate against our database
-  const validatedInfo = await validateVinWithDatabase(formattedVin, nhtsaInfo);
-  
-  return validatedInfo;
+    // Step 1: Decode with NHTSA
+    const nhtsaInfo = await decodeVinNHTSA(formattedVin);
+   
+    // Step 2: Validate against our database
+    const validatedInfo = await validateVinWithDatabase(formattedVin, nhtsaInfo);
+   
+    return validatedInfo;
+  } catch (error) {
+    console.error('VIN Decode Error:', error);
+    throw error; // Re-throw to be handled by the calling component
+  }
 };

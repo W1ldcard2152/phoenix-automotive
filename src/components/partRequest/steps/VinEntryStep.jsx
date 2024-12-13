@@ -24,10 +24,11 @@ const VinEntryStep = ({
     setLocalError('');
 
     try {
-      const vehicleInfo = await handleVinDecode(localVin);
-      onVinSubmit(vehicleInfo);
+      // Just pass the VIN string to the parent's onVinSubmit
+      await onVinSubmit(localVin);
     } catch (err) {
-      setLocalError(err.message);
+      console.error('VIN submission error:', err);
+      setLocalError(err.message || 'Failed to process VIN');
     } finally {
       setIsChecking(false);
     }
@@ -96,7 +97,6 @@ const VinEntryStep = ({
         )}
       </Button>
 
-      {/* Additional help text */}
       <div className="text-sm text-muted-foreground space-y-2">
         <p>Common VIN locations:</p>
         <ul className="list-disc pl-5 space-y-1">

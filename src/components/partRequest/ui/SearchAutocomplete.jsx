@@ -46,8 +46,8 @@ const SearchAutocomplete = ({
         </div>
       </PopoverTrigger>
       {value.length >= 2 && (
-        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-          <Command>
+        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-white" align="start">
+          <Command className="bg-white">
             <CommandEmpty>No parts found.</CommandEmpty>
             <CommandGroup>
               {results.map((result) => (

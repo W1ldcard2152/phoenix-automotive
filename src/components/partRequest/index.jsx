@@ -6,6 +6,7 @@ import PartSelectionStep from './steps/PartSelectionStep';
 import ContactInfoStep from './steps/ContactInfoStep';
 import ReviewStep from './steps/ReviewStep';
 import { Card, CardContent } from "@/components/ui/card";
+import { handleVinDecode } from '@/utils/vinUtils';
 
 const STEPS = [
   { label: 'Vehicle Info' },
@@ -34,6 +35,26 @@ const PartsRequestForm = () => {
     resetForm
   } = usePartsRequest();
 
+  const handleVinSubmit = async (vin) => {
+    try {
+      const vehicleInfo = await handleVinDecode(vin);
+      
+      if (!vehicleInfo.year || !vehicleInfo.make || !vehicleInfo.model) {
+        throw new Error('Could not decode essential vehicle information');
+      }
+      
+      if (vehicleInfo.inInventory) {
+        showToast.info(`Vehicle found in ${vehicleInfo.inventoryType} inventory`);
+      }
+
+      setVehicleInfo(vehicleInfo);
+      nextStep();
+    } catch (error) {
+      showToast.error('VIN Validation Failed', error.message);
+      throw error; // Re-throw to be caught by the VinEntryStep component
+    }
+  };
+
   const renderStep = () => {
     switch (state.step) {
       case 1:
@@ -41,16 +62,7 @@ const PartsRequestForm = () => {
           <VinEntryStep
             vin={state.vin}
             onVinChange={setVin}
-            onVinSubmit={async (vin) => {
-              try {
-                // Call to NHTSA API would go here
-                const vinInfo = await decodeVin(vin);
-                setVehicleInfo(vinInfo);
-                nextStep();
-              } catch (error) {
-                // Handle error
-              }
-            }}
+            onVinSubmit={handleVinSubmit}
             isLoading={state.isLoading}
             error={state.errors.vin}
           />
@@ -96,7 +108,7 @@ const PartsRequestForm = () => {
               part: state.selectedPart
             }}
             contactInfo={state.contactInfo}
-            onSubmit={handleSubmit}
+            onSubmit={handleFormSubmit}
             onEdit={() => prevStep()}
             isSubmitting={state.isSubmitting}
             error={state.errors.submit}
@@ -105,21 +117,6 @@ const PartsRequestForm = () => {
 
       default:
         return null;
-    }
-  };
-
-  const handleVinSubmit = async (vin) => {
-    try {
-      const vehicleInfo = await handleVinDecode(vin);
-      
-      if (vehicleInfo.inInventory) {
-        showToast.info(`Vehicle found in ${vehicleInfo.inventoryType} inventory`);
-      }
-
-      setVehicleInfo(vehicleInfo);
-      nextStep();
-    } catch (error) {
-      showToast.error('VIN Validation Failed', error.message);
     }
   };
 
@@ -145,21 +142,6 @@ const PartsRequestForm = () => {
         'Failed to submit request',
         'Please try again or contact support if the problem persists'
       );
-    }
-  };
-
-  const handleStepChange = (direction) => {
-    try {
-      if (direction === 'next') {
-        const success = nextStep();
-        if (success && state.step === 4) {
-          showToast.info('Please review your request before submitting');
-        }
-      } else {
-        prevStep();
-      }
-    } catch (error) {
-      showToast.error('Navigation Failed', error.message);
     }
   };
 
