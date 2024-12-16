@@ -13,61 +13,92 @@ const CascadingSelect = ({
   part,
   categories,
   subcategories,
+  parts,
   onCategoryChange,
   onSubcategoryChange,
   onPartChange,
   disabled = false
 }) => {
-  console.log('CascadingSelect received:', {
-    category,
-    subcategories: JSON.stringify(subcategories, null, 2)
-  });
+  // Helper function to get label from category object
+  const getCategoryLabel = (categoryKey) => {
+    return categories[categoryKey]?.label || categoryKey;
+  };
+
+  // Helper function to get label from subcategory object
+  const getSubcategoryLabel = (subcategoryKey) => {
+    return subcategories[subcategoryKey]?.label || subcategoryKey;
+  };
 
   return (
     <div className="space-y-4">
+      {/* Category Selection */}
       <div className="space-y-2">
         <Label>Category</Label>
         <Select
           value={category || ""}
           onValueChange={(value) => {
-            console.log('Category selected:', value);
             onCategoryChange(value);
           }}
           disabled={disabled}
         >
-          <SelectTrigger>
+          <SelectTrigger className="bg-white">
             <SelectValue placeholder="Select a category" />
           </SelectTrigger>
-          <SelectContent>
-            {Object.entries(categories).map(([key, value]) => (
-              <SelectItem key={key} value={key}>
-                {value.label}
+          <SelectContent className="bg-white">
+            {Object.keys(categories).map((categoryKey) => (
+              <SelectItem key={categoryKey} value={categoryKey}>
+                {getCategoryLabel(categoryKey)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
+      {/* Subcategory Selection */}
       {category && (
         <div className="space-y-2">
           <Label>Subcategory</Label>
           <Select
             value={subcategory || ""}
-            onValueChange={onSubcategoryChange}
+            onValueChange={(value) => {
+              onSubcategoryChange(value);
+            }}
             disabled={disabled || !category}
           >
-            <SelectTrigger>
+            <SelectTrigger className="bg-white">
               <SelectValue placeholder="Select a subcategory" />
             </SelectTrigger>
-            <SelectContent>
-              {Object.entries(subcategories).map(([key, value]) => {
-                console.log('Rendering subcategory:', key, value);
-                return (
-                  <SelectItem key={key} value={key}>
-                    {value}
-                  </SelectItem>
-                );
-              })}
+            <SelectContent className="bg-white">
+              {Object.keys(subcategories).map((subcategoryKey) => (
+                <SelectItem key={subcategoryKey} value={subcategoryKey}>
+                  {getSubcategoryLabel(subcategoryKey)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Part Selection - Only show if subcategory has specific parts */}
+      {category && subcategory && Array.isArray(parts) && parts.length > 0 && (
+        <div className="space-y-2">
+          <Label>Specific Part</Label>
+          <Select
+            value={part || ""}
+            onValueChange={(value) => {
+              onPartChange(value);
+            }}
+            disabled={disabled || !subcategory}
+          >
+            <SelectTrigger className="bg-white">
+              <SelectValue placeholder="Select a specific part" />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              {parts.map((partItem) => (
+                <SelectItem key={partItem} value={partItem}>
+                  {partItem}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

@@ -1,12 +1,18 @@
-import { useState } from 'react';
-import { PART_CATEGORIES } from '@/config/partCategories';
+import { useState, useEffect } from 'react';
+import { 
+  PART_CATEGORIES, 
+  getSubcategories, 
+  getParts,
+  hasSubcategoryParts,
+  isValidPartSelection 
+} from '@/config/partCategories';
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import SearchAutocomplete from '../ui/SearchAutocomplete';
 import CascadingSelect from '../ui/CascadingSelect';
+import FormNavigation from '../ui/FormNavigation';
 
 const PartSelectionStep = ({
   selectedCategory,
@@ -18,28 +24,69 @@ const PartSelectionStep = ({
   searchResults,
   onSearch,
   onSearchSelect,
-  availableSubcategories,
-  availableParts,
   vehicleInfo,
   error,
-  onNextStep
+  onNextStep,
+  onBack,
+  isSubmitting
 }) => {
   const [isSearching, setIsSearching] = useState(false);
+  const [availableSubcategories, setAvailableSubcategories] = useState({});
+  const [availableParts, setAvailableParts] = useState([]);
+
+  // Update available subcategories when category changes
+  useEffect(() => {
+    if (selectedCategory) {
+      const subcategories = getSubcategories(selectedCategory);
+      console.log('Updating subcategories:', subcategories);
+      setAvailableSubcategories(subcategories);
+    } else {
+      setAvailableSubcategories({});
+    }
+  }, [selectedCategory]);
+
+  // Update available parts when subcategory changes
+  useEffect(() => {
+    if (selectedCategory && selectedSubcategory) {
+      const parts = getParts(selectedCategory, selectedSubcategory);
+      console.log('Updating parts:', parts);
+      setAvailableParts(parts);
+    } else {
+      setAvailableParts([]);
+    }
+  }, [selectedCategory, selectedSubcategory]);
 
   const handleSearchChange = (query) => {
     setIsSearching(query.length >= 2);
     onSearch(query);
   };
 
+  const handleSearchSelect = (result) => {
+    onSearchSelect(result);
+    setIsSearching(false);
+  };
+
+  const handleCategoryChange = (category) => {
+    console.log('Category changed to:', category);
+    onCategoryChange(category);
+    onSubcategoryChange(null); // Reset subcategory when category changes
+    onPartChange(null); // Reset part when category changes
+  };
+
+  const handleSubcategoryChange = (subcategory) => {
+    console.log('Subcategory changed to:', subcategory);
+    onSubcategoryChange(subcategory);
+    onPartChange(null); // Reset part when subcategory changes
+  };
+
+  const handlePartChange = (part) => {
+    console.log('Part changed to:', part);
+    onPartChange(part);
+  };
+
   const canProceed = () => {
-    // Can proceed if category and subcategory are selected
-    // For subcategories with parts array, also require part selection
     if (!selectedCategory || !selectedSubcategory) return false;
-    
-    const subcategory = PART_CATEGORIES[selectedCategory]?.subcategories[selectedSubcategory];
-    if (subcategory?.parts && !selectedPart) return false;
-    
-    return true;
+    return isValidPartSelection(selectedCategory, selectedSubcategory, selectedPart);
   };
 
   return (
@@ -69,7 +116,7 @@ const PartSelectionStep = ({
         <SearchAutocomplete
           onSearch={handleSearchChange}
           results={searchResults}
-          onSelect={onSearchSelect}
+          onSelect={handleSearchSelect}
           isLoading={isSearching}
           placeholder="Search for parts (e.g., 'door panel', 'headlight')"
         />
@@ -88,15 +135,16 @@ const PartSelectionStep = ({
 
       {/* Category Selection */}
       <CascadingSelect
-  category={selectedCategory}
-  subcategory={selectedSubcategory}
-  part={selectedPart}
-  categories={PART_CATEGORIES}
-  subcategories={availableSubcategories}
-  onCategoryChange={onCategoryChange}
-  onSubcategoryChange={onSubcategoryChange}
-  onPartChange={onPartChange}
-/>
+        category={selectedCategory}
+        subcategory={selectedSubcategory}
+        part={selectedPart}
+        categories={PART_CATEGORIES}
+        subcategories={availableSubcategories}
+        parts={availableParts}
+        onCategoryChange={handleCategoryChange}
+        onSubcategoryChange={handleSubcategoryChange}
+        onPartChange={handlePartChange}
+      />
 
       {error && (
         <Alert variant="destructive">
@@ -105,15 +153,13 @@ const PartSelectionStep = ({
         </Alert>
       )}
 
-      {/* Continue Button */}
-      <div className="flex justify-end pt-4">
-        <Button
-          onClick={onNextStep}
-          disabled={!canProceed()}
-        >
-          Continue
-        </Button>
-      </div>
+      <FormNavigation
+        onNext={onNextStep}
+        onBack={onBack}
+        canGoNext={canProceed()}
+        nextLabel="Continue"
+        isLoading={isSubmitting}
+      />
     </div>
   );
 };

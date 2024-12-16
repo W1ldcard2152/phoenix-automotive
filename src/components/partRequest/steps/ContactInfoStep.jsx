@@ -3,18 +3,25 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import FormNavigation from '../ui/FormNavigation';
 
 const ContactInfoStep = ({
   contactInfo,
   onContactInfoChange,
   onNotesChange,
   formatPhoneNumber,
-  errors
+  errors,
+  onNext,
+  onBack,
+  isSubmitting
 }) => {
   const handlePhoneChange = (e) => {
     const formatted = formatPhoneNumber(e.target.value);
     onContactInfoChange('phone', formatted);
   };
+
+  // Check if we can proceed - basic validation
+  const canProceed = contactInfo.name && contactInfo.phone && contactInfo.email;
 
   return (
     <div className="space-y-6">
@@ -81,6 +88,14 @@ const ContactInfoStep = ({
           />
         </div>
       </div>
+
+      <FormNavigation
+        onNext={onNext}
+        onBack={onBack}
+        canGoNext={canProceed}
+        nextLabel="Review Request"
+        isLoading={isSubmitting}
+      />
     </div>
   );
 };

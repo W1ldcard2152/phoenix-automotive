@@ -2,22 +2,32 @@
 
 import { useReducer, useCallback, useEffect } from 'react';
 import { formReducer, initialFormState, ACTIONS, validateStep } from '../lib/partRequestLogic';
-import { searchParts, getSubcategories, getParts } from '../config/partCategories';
+import { 
+  searchParts, 
+  getSubcategories, 
+  getParts, 
+  isValidPartSelection 
+} from '../config/partCategories';
+import { showToast } from '@/utils/toastUtils';
 
 export const usePartsRequest = () => {
   const [state, dispatch] = useReducer(formReducer, initialFormState);
 
-  // Handle search as user types
+  // Handle search as user types with debouncing
   useEffect(() => {
-    if (state.searchQuery.length >= 2) {
-      const results = searchParts(state.searchQuery);
-      dispatch({ type: ACTIONS.SET_SEARCH_RESULTS, payload: results });
-    } else {
-      dispatch({ type: ACTIONS.SET_SEARCH_RESULTS, payload: [] });
-    }
+    const debounceTimer = setTimeout(() => {
+      if (state.searchQuery.length >= 2) {
+        const results = searchParts(state.searchQuery);
+        dispatch({ type: ACTIONS.SET_SEARCH_RESULTS, payload: results });
+      } else {
+        dispatch({ type: ACTIONS.SET_SEARCH_RESULTS, payload: [] });
+      }
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(debounceTimer);
   }, [state.searchQuery]);
 
-  // Navigation handlers
+  // Navigation handlers with validation
   const nextStep = useCallback(() => {
     const errors = validateStep(state);
     if (Object.keys(errors).length === 0) {
@@ -41,15 +51,19 @@ export const usePartsRequest = () => {
   // VIN handling
   const setVin = useCallback((vin) => {
     dispatch({ type: ACTIONS.SET_VIN, payload: vin.toUpperCase() });
+    // Clear any previous VIN-related errors
+    dispatch({ type: ACTIONS.CLEAR_ERROR, payload: 'vin' });
   }, []);
 
   const setVehicleInfo = useCallback((info) => {
     dispatch({ type: ACTIONS.SET_VEHICLE_INFO, payload: info });
   }, []);
 
-  // Part selection handlers
+  // Part selection handlers with validation
   const selectCategory = useCallback((category) => {
     dispatch({ type: ACTIONS.SELECT_CATEGORY, payload: category });
+    // Clear any previous part selection errors
+    dispatch({ type: ACTIONS.CLEAR_ERROR, payload: 'part' });
   }, []);
 
   const selectSubcategory = useCallback((subcategory) => {
@@ -66,14 +80,24 @@ export const usePartsRequest = () => {
   }, []);
 
   const selectSearchResult = useCallback((result) => {
-    dispatch({ type: ACTIONS.SELECT_SEARCH_RESULT, payload: result });
+    try {
+      dispatch({ type: ACTIONS.SELECT_SEARCH_RESULT, payload: result });
+      showToast.success('Part selected successfully');
+    } catch (error) {
+      showToast.error('Failed to select part', error.message);
+    }
   }, []);
 
-  // Contact info handlers
+  // Contact info handlers with validation
   const setContactInfo = useCallback((field, value) => {
     dispatch({
       type: ACTIONS.SET_CONTACT_INFO,
       payload: { field, value }
+    });
+    // Clear field-specific error when user starts typing
+    dispatch({
+      type: ACTIONS.CLEAR_ERROR,
+      payload: `contactInfo.${field}`
     });
   }, []);
 
@@ -103,18 +127,26 @@ export const usePartsRequest = () => {
 
   // Get available options based on current selection
   const getAvailableSubcategories = useCallback(() => {
-    return state.selectedCategory ? 
-      Object.keys(getSubcategories(state.selectedCategory)) : 
-      [];
+    if (!state.selectedCategory) return {};
+    return getSubcategories(state.selectedCategory);
   }, [state.selectedCategory]);
 
   const getAvailableParts = useCallback(() => {
-    return state.selectedCategory && state.selectedSubcategory ? 
-      getParts(state.selectedCategory, state.selectedSubcategory) : 
-      [];
+    if (!state.selectedCategory || !state.selectedSubcategory) return [];
+    return getParts(state.selectedCategory, state.selectedSubcategory);
   }, [state.selectedCategory, state.selectedSubcategory]);
 
-  // Reset form
+  // Validate current part selection
+  const validatePartSelection = useCallback(() => {
+    if (!state.selectedCategory || !state.selectedSubcategory) return false;
+    return isValidPartSelection(
+      state.selectedCategory,
+      state.selectedSubcategory,
+      state.selectedPart
+    );
+  }, [state.selectedCategory, state.selectedSubcategory, state.selectedPart]);
+
+  // Reset form with confirmation
   const resetForm = useCallback(() => {
     dispatch({ type: ACTIONS.RESET_FORM });
   }, []);
@@ -137,6 +169,7 @@ export const usePartsRequest = () => {
     selectPart,
     getAvailableSubcategories,
     getAvailableParts,
+    validatePartSelection,
     
     // Search
     setSearchQuery,

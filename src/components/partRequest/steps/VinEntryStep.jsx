@@ -3,15 +3,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader2, CheckCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { handleVinDecode, validateVinFormat } from '@/utils/vinUtils';
+import FormNavigation from '../ui/FormNavigation';
 
-const VinEntryStep = ({ 
-  vin, 
-  onVinChange, 
+const VinEntryStep = ({
+  vin,
+  onVinChange,
   onVinSubmit,
   isLoading,
-  error 
+  error
 }) => {
   const [localVin, setLocalVin] = useState(vin || '');
   const [isValid, setIsValid] = useState(false);
@@ -19,12 +19,11 @@ const VinEntryStep = ({
   const [localError, setLocalError] = useState('');
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setIsChecking(true);
     setLocalError('');
 
     try {
-      // Just pass the VIN string to the parent's onVinSubmit
       await onVinSubmit(localVin);
     } catch (err) {
       console.error('VIN submission error:', err);
@@ -82,21 +81,6 @@ const VinEntryStep = ({
         </Alert>
       )}
 
-      <Button 
-        type="submit" 
-        className="w-full"
-        disabled={!isValid || isLoading || isChecking}
-      >
-        {isChecking ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Decoding VIN...
-          </>
-        ) : (
-          'Continue'
-        )}
-      </Button>
-
       <div className="text-sm text-muted-foreground space-y-2">
         <p>Common VIN locations:</p>
         <ul className="list-disc pl-5 space-y-1">
@@ -106,6 +90,15 @@ const VinEntryStep = ({
           <li>Insurance card</li>
         </ul>
       </div>
+
+      <FormNavigation
+        onNext={handleSubmit}
+        canGoBack={false}
+        canGoNext={isValid && !isLoading && !isChecking}
+        nextLabel={isChecking ? "Decoding VIN..." : "Continue"}
+        isLoading={isChecking}
+        nextIcon={isChecking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : undefined}
+      />
     </form>
   );
 };

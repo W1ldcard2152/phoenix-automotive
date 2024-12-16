@@ -77,14 +77,14 @@ const PartsRequestForm = () => {
             onCategoryChange={selectCategory}
             onSubcategoryChange={selectSubcategory}
             onNextStep={() => nextStep()}
+            onBack={() => prevStep()}
             onPartChange={selectPart}
             searchResults={state.searchResults}
             onSearch={setSearchQuery}
             onSearchSelect={selectSearchResult}
-            availableSubcategories={getAvailableSubcategories()}
-            availableParts={getAvailableParts()}
             vehicleInfo={state.vehicleInfo}
             error={state.errors.part}
+            isSubmitting={state.isSubmitting}
           />
         );
 
@@ -96,6 +96,9 @@ const PartsRequestForm = () => {
             onNotesChange={setAdditionalNotes}
             formatPhoneNumber={formatPhoneNumber}
             errors={state.errors.contactInfo}
+            onNext={() => nextStep()}
+            onBack={() => prevStep()}
+            isSubmitting={state.isSubmitting}
           />
         );
 
