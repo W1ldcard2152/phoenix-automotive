@@ -21,7 +21,7 @@ const PartSelectionStep = ({
   onCategoryChange,
   onSubcategoryChange,
   onPartChange,
-  searchResults,
+  searchResults = [], // Add default value
   onSearch,
   onSearchSelect,
   vehicleInfo,
@@ -33,12 +33,17 @@ const PartSelectionStep = ({
   const [isSearching, setIsSearching] = useState(false);
   const [availableSubcategories, setAvailableSubcategories] = useState({});
   const [availableParts, setAvailableParts] = useState([]);
+  const [localSearchResults, setLocalSearchResults] = useState(searchResults);
+
+  // Update local search results when prop changes
+  useEffect(() => {
+    setLocalSearchResults(searchResults);
+  }, [searchResults]);
 
   // Update available subcategories when category changes
   useEffect(() => {
     if (selectedCategory) {
       const subcategories = getSubcategories(selectedCategory);
-      console.log('Updating subcategories:', subcategories);
       setAvailableSubcategories(subcategories);
     } else {
       setAvailableSubcategories({});
@@ -49,38 +54,56 @@ const PartSelectionStep = ({
   useEffect(() => {
     if (selectedCategory && selectedSubcategory) {
       const parts = getParts(selectedCategory, selectedSubcategory);
-      console.log('Updating parts:', parts);
       setAvailableParts(parts);
     } else {
       setAvailableParts([]);
     }
   }, [selectedCategory, selectedSubcategory]);
 
-  const handleSearchChange = (query) => {
-    setIsSearching(query.length >= 2);
-    onSearch(query);
+  const handleSearchChange = async (query) => {
+    try {
+      setIsSearching(true);
+      await onSearch(query);
+    } catch (error) {
+      console.error('Search error:', error);
+      setLocalSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const handleSearchSelect = (result) => {
-    onSearchSelect(result);
-    setIsSearching(false);
+    try {
+      onSearchSelect(result);
+      setIsSearching(false);
+      
+      // Automatically set category and subcategory based on search result
+      if (result.category) {
+        handleCategoryChange(result.category);
+        if (result.subcategory) {
+          handleSubcategoryChange(result.subcategory);
+          if (result.part) {
+            handlePartChange(result.part);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error selecting search result:', error);
+    }
   };
 
   const handleCategoryChange = (category) => {
-    console.log('Category changed to:', category);
     onCategoryChange(category);
-    onSubcategoryChange(null); // Reset subcategory when category changes
-    onPartChange(null); // Reset part when category changes
+    onSubcategoryChange(null);
+    onPartChange(null);
   };
 
   const handleSubcategoryChange = (subcategory) => {
-    console.log('Subcategory changed to:', subcategory);
     onSubcategoryChange(subcategory);
-    onPartChange(null); // Reset part when subcategory changes
+    onPartChange(null);
   };
 
   const handlePartChange = (part) => {
-    console.log('Part changed to:', part);
     onPartChange(part);
   };
 
@@ -115,7 +138,7 @@ const PartSelectionStep = ({
       <div className="space-y-2">
         <SearchAutocomplete
           onSearch={handleSearchChange}
-          results={searchResults}
+          results={localSearchResults}
           onSelect={handleSearchSelect}
           isLoading={isSearching}
           placeholder="Search for parts (e.g., 'door panel', 'headlight')"
