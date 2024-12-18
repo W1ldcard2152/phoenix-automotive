@@ -6,7 +6,7 @@
   "scripts": {
     "dev:server": "nodemon src/server.js --watch src/api",
     "dev:client": "vite",
-    "build": "vite build",
+    "build": "npm install -g vite && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -35,9 +35,7 @@
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.21.1",
     "tailwind-merge": "^2.2.0",
-    "tailwindcss-animate": "^1.0.7"
-  },
-  "devDependencies": {
+    "tailwindcss-animate": "^1.0.7",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",

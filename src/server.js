@@ -1,4 +1,3 @@
-// server.js
 import express from 'express';
 import cors from 'cors';
 import router from './api/index.js';
@@ -11,20 +10,8 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables with debug info
-const result = dotenv.config();
-console.log('Environment Loading:', {
-  currentDirectory: __dirname,
-  dotenvResult: result.error ? 'Error loading .env' : '.env loaded successfully',
-  error: result.error,
-});
-
-// Debug environment variables
-console.log('Environment Variables Check:', {
-  CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || 'not set',
-  CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY ? 'present' : 'not set',
-  CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET ? 'present' : 'not set'
-});
+// Load environment variables
+dotenv.config();
 
 const app = express();
 
@@ -34,25 +21,43 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.raw({ type: 'image/*', limit: '10mb' }));
 
-// Request logging middleware
-app.use((req, res, next) => {
-  console.log('Incoming request:', {
-    timestamp: new Date().toISOString(),
-    method: req.method,
-    path: req.path,
-    contentType: req.headers['content-type'],
-    body: req.path.includes('part-requests') ? req.body : '[body omitted]'
-  });
-  next();
+// Health check route
+app.get('/healthz', (req, res) => {
+  res.status(200).send('OK');
 });
 
-// Mount route handlers - only once
+// Request logging middleware
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, res, next) => {
+    console.log('Incoming request:', {
+      timestamp: new Date().toISOString(),
+      method: req.method,
+      path: req.path,
+      contentType: req.headers['content-type'],
+      body: req.path.includes('part-requests') ? req.body : '[body omitted]'
+    });
+    next();
+  });
+}
+
+// API routes
 app.use('/api', router);
 
-// Connect to MongoDB Atlas
-connectDB()
-  .then(() => console.log('Database connection established'))
-  .catch(err => console.error('Error connecting to database:', err));
+// Serve static files from the React build directory in production
+if (process.env.NODE_ENV === 'production') {
+  // Serve static files from the dist directory
+  app.use(express.static(path.join(__dirname, '../dist')));
+
+  // Handle React routing, return all requests to React app
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
+  });
+} else {
+  // Default route for development
+  app.get('/', (req, res) => {
+    res.send('Phoenix Automotive API');
+  });
+}
 
 // Enhanced error handling middleware
 app.use((err, req, res, next) => {
@@ -65,10 +70,13 @@ app.use((err, req, res, next) => {
     details: null
   };
 
-  console.error('Error caught in middleware:', {
-    ...errorResponse,
-    stack: err.stack
-  });
+  // Only log detailed errors in non-production environments
+  if (process.env.NODE_ENV !== 'production') {
+    console.error('Error caught in middleware:', {
+      ...errorResponse,
+      stack: err.stack
+    });
+  }
 
   if (res.headersSent) {
     return next(err);
@@ -84,27 +92,21 @@ app.use((err, req, res, next) => {
     return res.status(400).json(errorResponse);
   }
 
-  // Part request specific error handling
-  if (req.path.includes('part-requests')) {
-    console.error('Parts request error:', {
-      body: req.body,
-      error: err
-    });
-  }
-
   return res.status(500).json(errorResponse);
 });
 
-// Default route
-app.get('/', (req, res) => {
-  res.send('Phoenix Automotive API');
-});
+// Connect to MongoDB Atlas
+connectDB()
+  .then(() => console.log('Database connection established'))
+  .catch(err => console.error('Error connecting to database:', err));
 
 // Start server
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
-  console.log(`API available at http://localhost:${PORT}`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`API available at http://localhost:${PORT}`);
+  }
 });
 
 export default app;
