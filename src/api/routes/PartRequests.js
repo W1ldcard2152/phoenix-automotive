@@ -94,6 +94,11 @@ router.get('/:id', async (req, res) => {
 // Update a part request
 router.put('/:id', async (req, res) => {
   try {
+    console.log('Received part request:', {
+      body: req.body,
+      headers: req.headers,
+      url: req.url
+    });
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
         error: 'Invalid request ID format'

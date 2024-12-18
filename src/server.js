@@ -33,6 +33,20 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.raw({ type: 'image/*', limit: '10mb' }));
+
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log('Incoming request:', {
+    timestamp: new Date().toISOString(),
+    method: req.method,
+    path: req.path,
+    contentType: req.headers['content-type'],
+    body: req.path.includes('part-requests') ? req.body : '[body omitted]'
+  });
+  next();
+});
+
+// Mount route handlers - only once
 app.use('/api', router);
 
 // Connect to MongoDB Atlas
@@ -40,34 +54,45 @@ connectDB()
   .then(() => console.log('Database connection established'))
   .catch(err => console.error('Error connecting to database:', err));
 
-// Mount route handlers
-app.use('/api', router);
-
-// Error handling middleware
+// Enhanced error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Error caught in middleware:', err);
-  
+  const errorResponse = {
+    timestamp: new Date().toISOString(),
+    path: req.path,
+    method: req.method,
+    error: err.name || 'Error',
+    message: err.message || 'An unexpected error occurred',
+    details: null
+  };
+
+  console.error('Error caught in middleware:', {
+    ...errorResponse,
+    stack: err.stack
+  });
+
   if (res.headersSent) {
     return next(err);
   }
 
   if (err.name === 'ValidationError') {
-    return res.status(400).json({
-      error: 'Validation Error',
-      details: err.errors
-    });
+    errorResponse.details = err.errors;
+    return res.status(400).json(errorResponse);
   }
 
   if (err.name === 'CastError') {
-    return res.status(400).json({
-      error: 'Invalid ID format'
+    errorResponse.message = 'Invalid ID format';
+    return res.status(400).json(errorResponse);
+  }
+
+  // Part request specific error handling
+  if (req.path.includes('part-requests')) {
+    console.error('Parts request error:', {
+      body: req.body,
+      error: err
     });
   }
 
-  return res.status(500).json({
-    error: 'Something went wrong!',
-    message: err.message
-  });
+  return res.status(500).json(errorResponse);
 });
 
 // Default route

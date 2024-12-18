@@ -1,5 +1,6 @@
 import { usePartsRequest } from '@/hooks/usePartsRequest';
 import { showToast } from '@/utils/toastUtils';
+import { partRequestService } from '@/services/partRequestService';
 import StepIndicator from './ui/StepIndicator';
 import VinEntryStep from './steps/VinEntryStep';
 import PartSelectionStep from './steps/PartSelectionStep';
@@ -136,15 +137,24 @@ const PartsRequestForm = () => {
 
   const handleFormSubmit = async () => {
     try {
-      await submitPartRequest(state);
+      console.log('Starting form submission...');
+      console.log('Form state:', state);
+      
+      if (!partRequestService) {
+        console.error('partRequestService is not initialized');
+        throw new Error('Service not available');
+      }
+      
+      await partRequestService.submitRequest(state);
       showToast.success(
         'Part request submitted successfully! Our team will contact you shortly.'
       );
       resetForm();
     } catch (error) {
+      console.error('Form submission error:', error);
       showToast.error(
         'Failed to submit request',
-        'Please try again or contact support if the problem persists'
+        error.message || 'Please try again or contact support if the problem persists'
       );
     }
   };
