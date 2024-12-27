@@ -1,13 +1,22 @@
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? '/api'  // In production, use relative path
+  : 'http://localhost:3000/api'; // In development, use full URL
 
 const defaultHeaders = {
   'Cache-Control': 'no-cache',
-  'Pragma': 'no-cache'
+  'Pragma': 'no-cache',
+  'Accept': 'application/json',
+  'Content-Type': 'application/json'
 };
 
 const jsonHeaders = {
   ...defaultHeaders,
   'Content-Type': 'application/json'
+};
+
+const fetchOptions = {
+  credentials: 'include', // Important for CORS
+  mode: 'cors' // Explicitly state we want CORS
 };
 
 async function handleResponse(response) {
@@ -25,7 +34,7 @@ async function handleResponse(response) {
 }
 
 export const apiClient = {
-  // Existing dismantledVehicles methods
+  // Dismantled vehicles methods
   dismantledVehicles: {
     getAll: async () => {
       const url = `${API_BASE_URL}/dismantled-vehicles`;
@@ -33,6 +42,7 @@ export const apiClient = {
       
       try {
         const response = await fetch(url, {
+          ...fetchOptions,
           headers: defaultHeaders
         });
         console.log('apiClient received response:', {
@@ -48,12 +58,14 @@ export const apiClient = {
     },
     getById: async (id) => {
       const response = await fetch(`${API_BASE_URL}/dismantled-vehicles/${id}`, {
+        ...fetchOptions,
         headers: defaultHeaders
       });
       return handleResponse(response);
     },
     create: async (data) => {
       const response = await fetch(`${API_BASE_URL}/dismantled-vehicles`, {
+        ...fetchOptions,
         method: 'POST',
         headers: jsonHeaders,
         body: JSON.stringify(data)
@@ -62,6 +74,7 @@ export const apiClient = {
     },
     update: async (id, data) => {
       const response = await fetch(`${API_BASE_URL}/dismantled-vehicles/${id}`, {
+        ...fetchOptions,
         method: 'PUT',
         headers: jsonHeaders,
         body: JSON.stringify(data)
@@ -70,6 +83,7 @@ export const apiClient = {
     },
     delete: async (id) => {
       const response = await fetch(`${API_BASE_URL}/dismantled-vehicles/${id}`, {
+        ...fetchOptions,
         method: 'DELETE',
         headers: defaultHeaders
       });
@@ -77,7 +91,7 @@ export const apiClient = {
     }
   },
 
-  // Existing retailVehicles methods
+  // Retail vehicles methods
   retailVehicles: {
     getAll: async () => {
       const url = `${API_BASE_URL}/retail-vehicles`;
@@ -85,6 +99,7 @@ export const apiClient = {
       
       try {
         const response = await fetch(url, {
+          ...fetchOptions,
           headers: defaultHeaders
         });
         console.log('apiClient received response:', {
@@ -100,12 +115,14 @@ export const apiClient = {
     },
     getById: async (id) => {
       const response = await fetch(`${API_BASE_URL}/retail-vehicles/${id}`, {
+        ...fetchOptions,
         headers: defaultHeaders
       });
       return handleResponse(response);
     },
     create: async (data) => {
       const response = await fetch(`${API_BASE_URL}/retail-vehicles`, {
+        ...fetchOptions,
         method: 'POST',
         headers: jsonHeaders,
         body: JSON.stringify(data)
@@ -114,6 +131,7 @@ export const apiClient = {
     },
     update: async (id, data) => {
       const response = await fetch(`${API_BASE_URL}/retail-vehicles/${id}`, {
+        ...fetchOptions,
         method: 'PUT',
         headers: jsonHeaders,
         body: JSON.stringify(data)
@@ -122,6 +140,7 @@ export const apiClient = {
     },
     delete: async (id) => {
       const response = await fetch(`${API_BASE_URL}/retail-vehicles/${id}`, {
+        ...fetchOptions,
         method: 'DELETE',
         headers: defaultHeaders
       });
@@ -129,11 +148,12 @@ export const apiClient = {
     }
   },
 
-  // Enhanced partRequests methods
+  // Part requests methods
   partRequests: {
     create: async (data) => {
       console.log('Creating part request:', data);
       const response = await fetch(`${API_BASE_URL}/part-requests`, {
+        ...fetchOptions,
         method: 'POST',
         headers: jsonHeaders,
         body: JSON.stringify(data)
@@ -146,6 +166,7 @@ export const apiClient = {
       
       try {
         const response = await fetch(url, {
+          ...fetchOptions,
           headers: defaultHeaders
         });
         console.log('apiClient received response:', {
@@ -161,12 +182,14 @@ export const apiClient = {
     },
     getById: async (id) => {
       const response = await fetch(`${API_BASE_URL}/part-requests/${id}`, {
+        ...fetchOptions,
         headers: defaultHeaders
       });
       return handleResponse(response);
     },
     update: async (id, data) => {
       const response = await fetch(`${API_BASE_URL}/part-requests/${id}`, {
+        ...fetchOptions,
         method: 'PUT',
         headers: jsonHeaders,
         body: JSON.stringify(data)
@@ -175,11 +198,12 @@ export const apiClient = {
     }
   },
 
-  // New vin validation methods
+  // VIN validation methods
   vin: {
     decode: async (vin) => {
       console.log('Decoding VIN:', vin);
       const response = await fetch(`${API_BASE_URL}/vin/decode`, {
+        ...fetchOptions,
         method: 'POST',
         headers: jsonHeaders,
         body: JSON.stringify({ vin })
@@ -190,6 +214,7 @@ export const apiClient = {
     validate: async (vin, vehicleInfo) => {
       console.log('Validating VIN:', vin, vehicleInfo);
       const response = await fetch(`${API_BASE_URL}/vin/validate`, {
+        ...fetchOptions,
         method: 'POST',
         headers: jsonHeaders,
         body: JSON.stringify({ vin, vehicleInfo })
@@ -198,11 +223,12 @@ export const apiClient = {
     }
   },
 
-  // New search methods for parts
+  // Parts search methods
   parts: {
     search: async (query) => {
       console.log('Searching parts:', query);
       const response = await fetch(`${API_BASE_URL}/parts/search?q=${encodeURIComponent(query)}`, {
+        ...fetchOptions,
         headers: defaultHeaders
       });
       return handleResponse(response);

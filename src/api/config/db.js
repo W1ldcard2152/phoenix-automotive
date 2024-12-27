@@ -1,38 +1,30 @@
+// src/api/config/db.js
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-
 dotenv.config();
+
+const DATABASE_NAME = process.env.MONGODB_DATABASE || 'phoenix_automotive';
+
+// Construct the connection string
+const MONGODB_URI = `mongodb+srv://${process.env.MONGODB_USER}:${process.env.MONGODB_PASSWORD}@${process.env.MONGODB_CLUSTER}/${DATABASE_NAME}?${process.env.MONGODB_OPTIONS}`;
 
 const connectDB = async () => {
   try {
-    const mongoUri = process.env.MONGODB_URI;
-    
-    if (!mongoUri) {
-      throw new Error('MongoDB URI is not defined in environment variables');
-    }
-
     console.log('Attempting to connect to MongoDB...');
-    console.log(`Using database: ${mongoUri.split('@')[1]}`); // Logs the URI without credentials
-
-    const conn = await mongoose.connect(mongoUri, {
-      // These options are no longer needed in newer versions of mongoose but won't hurt
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
-
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
-    return conn;
-  } catch (error) {
-    console.error('MongoDB connection error:', error.message);
-    // Log additional details that might be helpful
-    console.error('Error details:', {
-      name: error.name,
-      code: error.code,
-      codeName: error.codeName,
-    });
+    const conn = await mongoose.connect(MONGODB_URI);
+    console.log(`MongoDB Atlas Connected: ${conn.connection.host}`);
+    console.log(`Using database: ${conn.connection.name}`);
     
-    // Exit process with failure if this is a critical error
-    process.exit(1);
+    mongoose.connection.on('error', err => {
+      console.error('MongoDB connection error:', err);
+    });
+
+    mongoose.connection.on('disconnected', () => {
+      console.log('MongoDB disconnected');
+    });
+  } catch (error) {
+    console.error(`Error connecting to MongoDB: ${error.message}`);
+    throw error;
   }
 };
 
