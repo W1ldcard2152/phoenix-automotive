@@ -13,21 +13,26 @@ dotenv.config();
 
 const app = express();
 
-// CORS Configuration
-
+// CORS Configuration with enhanced error handling
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    try {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
 
-    const allowedOrigins = process.env.NODE_ENV === 'production'
-      ? [process.env.CLIENT_URL || 'https://your-production-url.com']
-      : ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'];
+      const allowedOrigins = process.env.NODE_ENV === 'production'
+        ? [process.env.CLIENT_URL || 'https://phoenix-automotive.onrender.com']
+        : ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'];
 
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+      if (allowedOrigins.includes(origin) || !origin) {
+        callback(null, true);
+      } else {
+        console.warn('CORS blocked request from:', origin);
+        callback(new Error('Not allowed by CORS'));
+      }
+    } catch (error) {
+      console.error('CORS error:', error);
+      callback(error);
     }
   },
   credentials: true,
@@ -41,53 +46,102 @@ const corsOptions = {
     'Origin', 
     'Cache-Control', 
     'Pragma'
-  ]
+  ],
+  maxAge: 86400 // CORS preflight cache for 24 hours
 };
 
 app.use(cors(corsOptions));
 
-// Additional headers for CORS
+// Security headers middleware
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Credentials', 'true');
-  res.header(
-    'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept, Authorization'
-  );
+  res.header('Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('X-Content-Type-Options', 'nosniff');
+  res.header('X-Frame-Options', 'SAMEORIGIN');
+  res.header('X-XSS-Protection', '1; mode=block');
   next();
 });
 
-// Other middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Body parsing middleware with enhanced error handling
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, res, buf) => {
+    try {
+      JSON.parse(buf);
+    } catch (e) {
+      console.error('Invalid JSON:', e);
+      res.status(400).json({ error: 'Invalid JSON payload' });
+      throw new Error('Invalid JSON');
+    }
+  }
+}));
+
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.raw({ type: 'image/*', limit: '10mb' }));
 
-// Health check route
+// Health check route with basic system info
 app.get('/healthz', (req, res) => {
-  res.status(200).send('OK');
+  const health = {
+    uptime: process.uptime(),
+    timestamp: Date.now(),
+    status: 'OK'
+  };
+  res.status(200).json(health);
 });
 
-// Request logging middleware
-if (process.env.NODE_ENV !== 'production') {
-  app.use((req, res, next) => {
-    console.log('Incoming request:', {
-      timestamp: new Date().toISOString(),
-      method: req.method,
-      path: req.path,
-      contentType: req.headers['content-type'],
-      body: req.path.includes('part-requests') ? req.body : '[body omitted]'
-    });
-    next();
+// Enhanced request logging for all environments
+app.use((req, res, next) => {
+  const start = Date.now();
+  
+  // Log request
+  console.log({
+    timestamp: new Date().toISOString(),
+    type: 'request',
+    method: req.method,
+    path: req.path,
+    userAgent: req.get('user-agent'),
+    ip: req.ip
   });
-}
+
+  // Log response
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    if (res.statusCode >= 400) {
+      console.error({
+        timestamp: new Date().toISOString(),
+        type: 'response',
+        method: req.method,
+        path: req.path,
+        statusCode: res.statusCode,
+        duration: `${duration}ms`,
+        userAgent: req.get('user-agent'),
+        ip: req.ip
+      });
+    }
+  });
+
+  next();
+});
 
 // API routes
 app.use('/api', router);
 
-// Serve static files from the React build directory in production
+// Static file serving with enhanced caching
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../dist')));
+  app.use(express.static(path.join(__dirname, '../dist'), {
+    maxAge: '1y',
+    etag: true,
+    lastModified: true
+  }));
+
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../dist/index.html'));
+    res.sendFile(path.join(__dirname, '../dist/index.html'), {
+      maxAge: '1d',
+      headers: {
+        'Cache-Control': 'public, max-age=86400'
+      }
+    });
   });
 } else {
   app.get('/', (req, res) => {
@@ -95,7 +149,7 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-// Enhanced error handling middleware
+// Comprehensive error handling middleware
 app.use((err, req, res, next) => {
   const errorResponse = {
     timestamp: new Date().toISOString(),
@@ -103,13 +157,20 @@ app.use((err, req, res, next) => {
     method: req.method,
     error: err.name || 'Error',
     message: err.message || 'An unexpected error occurred',
-    details: null
+    details: null,
+    requestId: req.id,
+    userAgent: req.get('user-agent'),
+    browser: req.get('sec-ch-ua')
   };
 
-  if (process.env.NODE_ENV !== 'production') {
-    console.error('Error caught in middleware:', {
+  // Log all errors in any environment if they're 500s
+  if (err.status === 500 || !err.status) {
+    console.error('Server Error:', {
       ...errorResponse,
-      stack: err.stack
+      stack: err.stack,
+      headers: req.headers,
+      query: req.query,
+      params: req.params
     });
   }
 
@@ -117,31 +178,72 @@ app.use((err, req, res, next) => {
     return next(err);
   }
 
-  if (err.name === 'ValidationError') {
-    errorResponse.details = err.errors;
-    return res.status(400).json(errorResponse);
+  // Handle specific error types
+  switch (err.name) {
+    case 'ValidationError':
+      errorResponse.details = err.errors;
+      return res.status(400).json(errorResponse);
+    
+    case 'CastError':
+      errorResponse.message = 'Invalid ID format';
+      return res.status(400).json(errorResponse);
+    
+    case 'MongoError':
+      if (err.code === 11000) {
+        errorResponse.message = 'Duplicate key error';
+        return res.status(409).json(errorResponse);
+      }
+      break;
+    
+    case 'SyntaxError':
+      if (err.status === 400) {
+        errorResponse.message = 'Invalid request syntax';
+        return res.status(400).json(errorResponse);
+      }
+      break;
   }
 
-  if (err.name === 'CastError') {
-    errorResponse.message = 'Invalid ID format';
-    return res.status(400).json(errorResponse);
-  }
-
-  return res.status(500).json(errorResponse);
+  return res.status(err.status || 500).json(errorResponse);
 });
 
-// Connect to MongoDB Atlas
-connectDB()
-  .then(() => console.log('Database connection established'))
-  .catch(err => console.error('Error connecting to database:', err));
+// Fallback error handler for uncaught errors
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+});
 
-// Start server
+process.on('unhandledRejection', (error) => {
+  console.error('Unhandled Rejection:', error);
+});
+
+// Connect to MongoDB with enhanced error handling
+connectDB()
+  .then(() => {
+    console.log('Database connection established');
+  })
+  .catch(err => {
+    console.error('Fatal: Database connection failed:', err);
+    process.exit(1);
+  });
+
+// Start server with enhanced error handling
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   if (process.env.NODE_ENV !== 'production') {
     console.log(`API available at http://localhost:${PORT}`);
   }
+}).on('error', (error) => {
+  console.error('Server failed to start:', error);
+  process.exit(1);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Shutting down gracefully...');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
 });
 
 export default app;
