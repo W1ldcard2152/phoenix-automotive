@@ -1,5 +1,4 @@
-// src/components/Navbar.jsx
-import { useState } from 'react';
+import { useState, useCallback, Suspense } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Phone, MessageSquare, Menu } from 'lucide-react';
 import { MobileDrawer } from '@/components/layout';
@@ -8,10 +7,29 @@ import { Button } from "@/components/ui/button";
 
 const Navbar = () => {
   const location = useLocation();
-  const { isMobile } = useBreakpoint();
+  const { isMobile, width } = useBreakpoint();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  
-  console.log('Navbar render - isDrawerOpen:', isDrawerOpen);
+
+  // Memoized navigation handler
+  const handleNavigation = useCallback(() => {
+    try {
+      setIsDrawerOpen(false);
+    } catch (error) {
+      console.error('Error closing drawer:', error);
+    }
+  }, []);
+
+  // Memoized drawer state handler
+  const handleDrawerState = useCallback((state) => {
+    try {
+      console.log('Setting drawer state:', state);
+      setIsDrawerOpen(state);
+    } catch (error) {
+      console.error('Error setting drawer state:', error);
+      // Attempt to force drawer closed on error
+      setIsDrawerOpen(false);
+    }
+  }, []);
 
   const navItems = [
     { path: '/', label: 'Home' },
@@ -21,11 +39,7 @@ const Navbar = () => {
     { path: '/contact', label: 'Contact' }
   ];
 
-  const handleNavigation = () => {
-    setIsDrawerOpen(false);
-  };
-
-  const renderNavItem = (item) => (
+  const renderNavItem = useCallback((item) => (
     <Link
       key={item.path}
       to={item.path}
@@ -35,9 +49,9 @@ const Navbar = () => {
     >
       {item.label}
     </Link>
-  );
+  ), [location.pathname]);
 
-  const renderMobileNavItem = (item) => (
+  const renderMobileNavItem = useCallback((item) => (
     <Link
       key={item.path}
       to={item.path}
@@ -50,9 +64,9 @@ const Navbar = () => {
     >
       {item.label}
     </Link>
-  );
+  ), [location.pathname, handleNavigation]);
 
-  const ContactInfo = () => (
+  const ContactInfo = useCallback(() => (
     <div className="flex items-center space-x-4 text-sm">
       <a href="tel:3158300008" className="flex items-center">
         <Phone size={16} className="text-red-700 mr-2" />
@@ -63,7 +77,12 @@ const Navbar = () => {
         <span>(315) 404-0570</span>
       </a>
     </div>
-  );
+  ), []);
+
+  // Early return if width is undefined (prevents flash of content)
+  if (typeof width === 'undefined') {
+    return null;
+  }
 
   return (
     <>
@@ -103,7 +122,7 @@ const Navbar = () => {
             {/* Desktop Navigation */}
             {!isMobile && (
               <div className="flex items-center space-x-8">
-                {navItems.map(item => renderNavItem(item))}
+                {navItems.map(renderNavItem)}
               </div>
             )}
 
@@ -113,43 +132,55 @@ const Navbar = () => {
                 <a href="tel:3158300008" className="p-2">
                   <Phone className="h-6 w-6 text-red-700" />
                 </a>
-                <MobileDrawer
-                  isOpen={isDrawerOpen}
-                  onClose={setIsDrawerOpen}
-                  trigger={
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      onClick={() => {
-                        console.log('Menu button clicked');
-                        setIsDrawerOpen(true);
-                      }}
-                    >
-                      <Menu className="h-6 w-6" />
-                    </Button>
-                  }
-                >
-                  <div className="flex flex-col py-4">
-                    {navItems.map(item => renderMobileNavItem(item))}
-                    <div className="mt-6 px-4 pt-6 border-t">
-                      <div className="text-sm text-gray-600 space-y-4">
-                        <a href="tel:3158300008" className="flex items-center space-x-3">
-                          <Phone size={16} className="text-red-700" />
-                          <span>(315) 830-0008</span>
-                        </a>
-                        <a href="sms:3154040570" className="flex items-center space-x-3">
-                          <MessageSquare size={16} className="text-red-700" />
-                          <span>(315) 404-0570</span>
-                        </a>
-                        <div className="pt-4">
-                          <div className="font-medium">Hours:</div>
-                          <div>Mon-Fri: 8am-5pm</div>
-                          <div>Sat-Sun: Text Only</div>
+                <Suspense fallback={
+                  <Button variant="ghost" size="icon">
+                    <Menu className="h-6 w-6" />
+                  </Button>
+                }>
+                  <MobileDrawer
+                    isOpen={isDrawerOpen}
+                    onClose={handleDrawerState}
+                    trigger={
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => handleDrawerState(true)}
+                        aria-label="Open menu"
+                      >
+                        <Menu className="h-6 w-6" />
+                      </Button>
+                    }
+                  >
+                    <nav className="flex flex-col py-4" role="navigation">
+                      {navItems.map(renderMobileNavItem)}
+                      <div className="mt-6 px-4 pt-6 border-t">
+                        <div className="text-sm text-gray-600 space-y-4">
+                          <a 
+                            href="tel:3158300008" 
+                            className="flex items-center space-x-3"
+                            aria-label="Call us"
+                          >
+                            <Phone size={16} className="text-red-700" />
+                            <span>(315) 830-0008</span>
+                          </a>
+                          <a 
+                            href="sms:3154040570" 
+                            className="flex items-center space-x-3"
+                            aria-label="Text us"
+                          >
+                            <MessageSquare size={16} className="text-red-700" />
+                            <span>(315) 404-0570</span>
+                          </a>
+                          <div className="pt-4">
+                            <div className="font-medium">Hours:</div>
+                            <div>Mon-Fri: 8am-5pm</div>
+                            <div>Sat-Sun: Text Only</div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                </MobileDrawer>
+                    </nav>
+                  </MobileDrawer>
+                </Suspense>
               </div>
             )}
           </div>

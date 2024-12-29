@@ -1,49 +1,111 @@
-import React from 'react';
+import React, { useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 
-const MobileDrawer = ({ 
+export const MobileDrawer = ({ 
   children,
   trigger,
   className = "",
   isOpen,
   onClose
 }) => {
-  console.log('MobileDrawer render - isOpen:', isOpen);
-  
+  // Handle escape key press
+  const handleEscapeKey = useCallback((e) => {
+    if (e.key === 'Escape' && isOpen) {
+      onClose(false);
+    }
+  }, [isOpen, onClose]);
+
+  // Handle scroll lock and escape key
+  useEffect(() => {
+    if (!window) return;
+
+    // Save initial body style
+    const originalStyle = window.getComputedStyle(document.body).overflow;
+
+    if (isOpen) {
+      // Lock scroll
+      document.body.style.overflow = 'hidden';
+      // Add escape key listener
+      window.addEventListener('keydown', handleEscapeKey);
+    }
+
+    // Cleanup function
+    return () => {
+      // Restore original scroll behavior
+      document.body.style.overflow = originalStyle;
+      // Remove escape key listener
+      window.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [isOpen, handleEscapeKey]);
+
+  // Handle clicks outside drawer
+  const handleBackdropClick = useCallback((e) => {
+    if (e.target === e.currentTarget) {
+      onClose(false);
+    }
+  }, [onClose]);
+
+  // Default trigger button if none provided
+  const defaultTrigger = (
+    <Button 
+      variant="ghost" 
+      size="icon"
+      onClick={() => onClose(!isOpen)}
+      aria-label={isOpen ? "Close menu" : "Open menu"}
+    >
+      <Menu className="h-6 w-6" />
+    </Button>
+  );
+
   return (
-    <div>
-      {trigger || (
-        <Button 
-          variant="ghost" 
-          size="icon"
-          onClick={() => onClose(!isOpen)}
-        >
-          <Menu className="h-6 w-6" />
-        </Button>
-      )}
+    <div className="relative">
+      {/* Render either custom trigger or default */}
+      {trigger || defaultTrigger}
 
       {isOpen && (
-        <div className="fixed inset-0 z-50">
+        <div 
+          className="fixed inset-0 z-50 flex justify-end"
+          role="dialog"
+          aria-modal="true"
+          onClick={handleBackdropClick}
+        >
           {/* Backdrop */}
           <div 
-            className="absolute inset-0 bg-black/50"
-            onClick={() => onClose(false)}
+            className="absolute inset-0 bg-black/50 transition-opacity"
+            aria-hidden="true"
           />
           
-          {/* Drawer Content */}
-          <div className={`absolute right-0 top-0 h-full w-80 bg-white p-6 shadow-lg ${className}`}>
+          {/* Drawer panel */}
+          <div 
+            className={`relative w-80 max-w-[90vw] bg-white shadow-xl transition-transform duration-300 ease-in-out ${className}`}
+            style={{
+              WebkitOverflowScrolling: 'touch',
+            }}
+          >
+            {/* Close button */}
             <Button 
               variant="ghost" 
               size="icon"
-              className="absolute right-4 top-4"
+              className="absolute right-4 top-4 z-10"
               onClick={() => onClose(false)}
+              aria-label="Close menu"
             >
               <X className="h-6 w-6" />
             </Button>
-            <div className="mt-12">
-              {children}
+
+            {/* Content container */}
+            <div 
+              className="h-full overflow-y-auto overscroll-contain p-6 pb-safe-area-inset-bottom"
+              style={{
+                scrollbarWidth: 'thin',
+                scrollbarColor: '#CBD5E0 #F7FAFC'
+              }}
+            >
+              <div className="mt-12">
+                {children}
+              </div>
             </div>
           </div>
         </div>
@@ -52,12 +114,13 @@ const MobileDrawer = ({
   );
 };
 
+// Add prop-types validation
 MobileDrawer.propTypes = {
   children: PropTypes.node.isRequired,
-  trigger: PropTypes.node,
+  trigger: PropTypes.element,
   className: PropTypes.string,
   isOpen: PropTypes.bool.isRequired,
-  onClose: PropTypes.func.isRequired
+  onClose: PropTypes.func.isRequired,
 };
 
 export default MobileDrawer;

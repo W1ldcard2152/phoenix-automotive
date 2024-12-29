@@ -1,5 +1,4 @@
-// src/hooks/useBreakpoint.js
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 const breakpoints = {
   sm: 640,
@@ -10,28 +9,98 @@ const breakpoints = {
 };
 
 export const useBreakpoint = () => {
-  const [breakpoint, setBreakpoint] = useState({
+  // Initialize with SSR-safe defaults
+  const [breakpoint, setBreakpoint] = useState(() => ({
     isMobile: false,
     isTablet: false,
-    isDesktop: false,
-    width: undefined
-  });
+    isDesktop: true, // Default to desktop for SSR
+    width: typeof window !== 'undefined' ? window.innerWidth : undefined
+  }));
 
-  useEffect(() => {
-    const handleResize = () => {
-      const width = window.innerWidth;
-      setBreakpoint({
+  // Memoize the resize calculation to prevent recreating on every render
+  const calculateBreakpoint = useCallback((width) => {
+    try {
+      return {
         isMobile: width < breakpoints.md,
         isTablet: width >= breakpoints.md && width < breakpoints.lg,
         isDesktop: width >= breakpoints.lg,
         width
-      });
-    };
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+      };
+    } catch (error) {
+      console.error('Error calculating breakpoint:', error);
+      // Return safe defaults on error
+      return {
+        isMobile: false,
+        isTablet: false,
+        isDesktop: true,
+        width: undefined
+      };
+    }
   }, []);
 
-  return breakpoint;
+  useEffect(() => {
+    // Return early if window is not defined (SSR)
+    if (typeof window === 'undefined') return;
+
+    let timeoutId;
+    
+    const handleResize = () => {
+      // Clear existing timeout
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+
+      // Debounce resize events
+      timeoutId = window.setTimeout(() => {
+        try {
+          const width = window.innerWidth;
+          if (typeof width !== 'number' || isNaN(width)) {
+            throw new Error('Invalid width value');
+          }
+          setBreakpoint(calculateBreakpoint(width));
+        } catch (error) {
+          console.error('Error handling resize:', error);
+          // Set safe defaults on error
+          setBreakpoint({
+            isMobile: false,
+            isTablet: false,
+            isDesktop: true,
+            width: undefined
+          });
+        }
+      }, 100); // 100ms debounce delay
+    };
+
+    // Initial calculation
+    handleResize();
+
+    // Add event listener with error handling
+    try {
+      window.addEventListener('resize', handleResize, { passive: true });
+    } catch (error) {
+      console.error('Error adding resize listener:', error);
+    }
+
+    // Cleanup
+    return () => {
+      try {
+        if (timeoutId) {
+          window.clearTimeout(timeoutId);
+        }
+        window.removeEventListener('resize', handleResize);
+      } catch (error) {
+        console.error('Error cleaning up resize listener:', error);
+      }
+    };
+  }, [calculateBreakpoint]);
+
+  // Add a safety check for the returned width
+  const safeBreakpoint = {
+    ...breakpoint,
+    width: typeof breakpoint.width === 'number' && !isNaN(breakpoint.width) 
+      ? breakpoint.width 
+      : undefined
+  };
+
+  return safeBreakpoint;
 };
