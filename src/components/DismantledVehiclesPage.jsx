@@ -12,25 +12,34 @@ const DismantledVehiclesPage = () => {
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   useEffect(() => {
     const fetchVehicles = async () => {
       try {
         setLoading(true);
-        const response = await apiClient.dismantledVehicles.getAll();
+        setError(null); // Clear any existing errors
         
-        if (!response.ok) throw new Error('Failed to fetch vehicles');
+        console.log('Starting vehicle fetch...');
+        const data = await apiClient.dismantledVehicles.getAll();
+        console.log('Received vehicle data:', data);
         
-        const data = await response.json();
+        if (!Array.isArray(data)) {
+          throw new Error('Invalid response format');
+        }
+        
         setVehicles(data);
       } catch (err) {
-        console.error('Error loading vehicles:', err);
+        console.error('Failed to fetch vehicles:', {
+          message: err.message,
+          stack: err.stack
+        });
         setError(err.message);
       } finally {
         setLoading(false);
       }
     };
-
+  
     fetchVehicles();
   }, []);
 
@@ -101,7 +110,6 @@ const DismantledVehiclesPage = () => {
 
   const VehicleCard = ({ vehicle }) => (
     <Card key={vehicle._id} className="overflow-hidden hover:shadow-lg transition-shadow">
-      {/* Vehicle Image */}
       <div className="h-48 relative">
         <img 
           src={vehicle.imageUrl || "/api/placeholder/400/300"} 
@@ -115,7 +123,6 @@ const DismantledVehiclesPage = () => {
           </h3>
         </div>
       </div>
-      {/* Vehicle Details */}
       <div className="p-4">
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-gray-600">
@@ -143,117 +150,143 @@ const DismantledVehiclesPage = () => {
     </Card>
   );
 
-  if (loading || error) {
-    return (
-      <ResponsiveContainer>
-        <div className="text-center">
-          {loading ? "Loading vehicles..." : `Error loading vehicles: ${error}`}
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="flex justify-center items-center min-h-[200px]">
+          <div className="text-center text-gray-600">Loading vehicles...</div>
         </div>
-      </ResponsiveContainer>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="flex justify-center items-center min-h-[200px]">
+          <div className="text-center text-red-600">
+            <p className="font-semibold mb-2">Error loading vehicles</p>
+            <p className="text-sm">{error}</p>
+          </div>
+        </div>
+      );
+    }
+
+    return isMobile ? (
+      // Mobile Layout
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-xl font-bold mb-4">Recently Dismantled Vehicles</h2>
+          <div className="grid grid-cols-1 gap-4">
+            {vehicles.length > 0 ? (
+              vehicles.map((vehicle) => (
+                <VehicleCard key={vehicle._id} vehicle={vehicle} />
+              ))
+            ) : (
+              <p>No vehicles currently available for parts</p>
+            )}
+          </div>
+        </div>
+
+        <div className="fixed bottom-4 right-4">
+          <MobileDrawer
+            isOpen={isDrawerOpen}
+            onClose={setIsDrawerOpen}
+            trigger={
+              <Button size="lg" className="rounded-full shadow-lg bg-red-600 hover:bg-red-700 text-white">
+                Contact & Info
+              </Button>
+            }
+          >
+            <SidebarContent />
+          </MobileDrawer>
+        </div>
+      </div>
+    ) : (
+      // Desktop Layout
+      <div className="flex gap-8">
+        <div className="w-2/3">
+          <h2 className="text-2xl font-bold mb-6">Recently Dismantled Vehicles</h2>
+          <div className="grid grid-cols-2 gap-6">
+            {vehicles.length > 0 ? (
+              vehicles.map((vehicle) => (
+                <VehicleCard key={vehicle._id} vehicle={vehicle} />
+              ))
+            ) : (
+              <p>No vehicles currently available for parts</p>
+            )}
+          </div>
+        </div>
+        <div className="w-1/3">
+          <div className="sticky top-24">
+            <SidebarContent />
+          </div>
+        </div>
+      </div>
     );
-  }
+  };
 
   return (
     <div className="space-y-8">
       {/* Hero Banner */}
-      <div className="relative bg-[#1a1f2e] py-8 md:py-16">
-        <div className="absolute inset-0">
+      <section className="relative bg-[#1a1f2e]">
+        <div className="relative h-[400px] md:h-[400px] overflow-hidden">
           <img
             src="/images/parts-page-bg.jpg"
-            alt="Used OEM Parts Background"
-            className="w-full h-full object-cover opacity-40"
+            alt="Phoenix Automotive Warehouse"
+            className="absolute inset-0 w-full h-full object-cover md:object-center opacity-40"
             loading="lazy"
           />
-          <div className="absolute inset-0 bg-gradient-to-l from-black/30 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent" />
+          
+          <ResponsiveContainer
+            mobileClassName="absolute inset-0 flex items-start px-4 pt-12"
+            desktopClassName="absolute inset-0 container mx-auto px-4 flex items-center"
+          >
+            <div className="w-full max-w-3xl mx-auto text-center">
+              <div className="space-y-4 md:space-y-6">
+                <h1 className="text-2xl md:text-4xl font-bold text-white tracking-tight">
+                  Used OEM Parts
+                </h1>
+                <p className="text-sm md:text-xl text-white max-w-2xl mx-auto leading-relaxed">
+                  Quality recycled auto parts from late model vehicles. All parts are thoroughly inspected and tested.
+                </p>
+                
+                {isMobile && (
+                  <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                    <Button 
+                      className="w-full bg-red-700 hover:bg-red-800 text-white"
+                      asChild
+                    >
+                      <a 
+                        href="https://www.ebay.com/str/Phoenix-Automotive"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-2"
+                      >
+                        Shop eBay Store
+                        <ArrowRight className="h-4 w-4" />
+                      </a>
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      className="w-full border-white bg-white/5 hover:bg-white/10 text-white"
+                      asChild
+                    >
+                      <Link to="/partsrequest" className="inline-flex items-center justify-center gap-2">
+                        Request Parts
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </ResponsiveContainer>
         </div>
-        <ResponsiveContainer>
-          <div className="text-center">
-            <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">Used OEM Parts</h1>
-            <p className="text-lg md:text-xl text-white/90 max-w-2xl mx-auto">
-              Quality recycled auto parts from late model vehicles. All parts are thoroughly inspected and tested.
-            </p>
-          </div>
-        </ResponsiveContainer>
-      </div>
+      </section>
 
       {/* Main Content */}
       <ResponsiveContainer>
-        {isMobile ? (
-          // Mobile Layout
-          <div className="space-y-6">
-            {/* Quick Actions for Mobile */}
-            <div className="grid grid-cols-2 gap-4">
-              <Button 
-                className="w-full bg-red-600 hover:bg-red-700 text-white"
-                asChild
-              >
-                <a 
-                  href="https://www.ebay.com/str/Phoenix-Automotive"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  eBay Store
-                </a>
-              </Button>
-              <Button 
-                className="w-full bg-red-600 hover:bg-red-700 text-white"
-                asChild
-              >
-                <Link to="/partsrequest">
-                  Request Parts
-                </Link>
-              </Button>
-            </div>
-
-            {/* Vehicles Grid */}
-            <div>
-              <h2 className="text-xl font-bold mb-4">Recently Dismantled Vehicles</h2>
-              <div className="grid grid-cols-1 gap-4">
-                {vehicles.length > 0 ? (
-                  vehicles.map((vehicle) => (
-                    <VehicleCard key={vehicle._id} vehicle={vehicle} />
-                  ))
-                ) : (
-                  <p>No vehicles currently available for parts</p>
-                )}
-              </div>
-            </div>
-
-            {/* Mobile Sidebar Drawer */}
-            <div className="fixed bottom-4 right-4">
-              <MobileDrawer
-                trigger={
-                  <Button size="lg" className="rounded-full shadow-lg bg-red-600 hover:bg-red-700">
-                    Contact & Info
-                  </Button>
-                }
-              >
-                <SidebarContent />
-              </MobileDrawer>
-            </div>
-          </div>
-        ) : (
-          // Desktop Layout
-          <div className="flex gap-8">
-            <div className="w-2/3">
-              <h2 className="text-2xl font-bold mb-6">Recently Dismantled Vehicles</h2>
-              <div className="grid grid-cols-2 gap-6">
-                {vehicles.length > 0 ? (
-                  vehicles.map((vehicle) => (
-                    <VehicleCard key={vehicle._id} vehicle={vehicle} />
-                  ))
-                ) : (
-                  <p>No vehicles currently available for parts</p>
-                )}
-              </div>
-            </div>
-            <div className="w-1/3">
-              <div className="sticky top-24">
-                <SidebarContent />
-              </div>
-            </div>
-          </div>
-        )}
+        {renderContent()}
       </ResponsiveContainer>
     </div>
   );

@@ -1,4 +1,4 @@
 // src/components/layout/index.js
-export * from './ResponsiveContainer';
-export * from './ResponsiveGrid';
-export * from './MobileDrawer';
+export { default as MobileDrawer } from './MobileDrawer';
+export { ResponsiveContainer } from './ResponsiveContainer';
+export { ResponsiveGrid } from './ResponsiveGrid';

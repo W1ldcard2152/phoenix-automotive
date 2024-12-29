@@ -68,25 +68,46 @@ router.get('/', async (req, res) => {
 });
 
 // Get a specific part request
-router.get('/:id', async (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({
-        error: 'Invalid request ID format'
-      });
+    console.log('Fetching part requests...');
+    
+    // Check database connection
+    if (mongoose.connection.readyState !== 1) {
+      throw new Error('Database connection is not ready');
+    }
+    
+    const { status, dateFrom, dateTo } = req.query;
+    let query = {};
+    
+    if (status) {
+      query.status = status;
+    }
+    
+    if (dateFrom || dateTo) {
+      query.createdAt = {};
+      if (dateFrom) query.createdAt.$gte = new Date(dateFrom);
+      if (dateTo) query.createdAt.$lte = new Date(dateTo);
     }
 
-    const request = await PartRequestModel.PartRequest.findById(req.params.id);
-    if (!request) {
-      return res.status(404).json({
-        error: 'Part request not found'
-      });
-    }
-    res.json(request);
+    console.log('Executing query:', JSON.stringify(query));
+
+    const requests = await PartRequestModel.PartRequest.find(query)
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
+      
+    console.log(`Found ${requests.length} part requests`);
+    res.json(requests);
   } catch (error) {
-    console.error('Error fetching part request:', error);
+    console.error('Error fetching part requests:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code
+    });
     res.status(500).json({
-      error: error.message
+      error: error.message,
+      code: error.code
     });
   }
 });

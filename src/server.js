@@ -6,23 +6,22 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Get current directory
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables
 dotenv.config();
 
 const app = express();
 
 // CORS Configuration
+
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
 
     const allowedOrigins = process.env.NODE_ENV === 'production'
-      ? [process.env.CLIENT_URL || 'https://phoenix-automotive.onrender.com']
+      ? [process.env.CLIENT_URL || 'https://your-production-url.com']
       : ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'];
 
     if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
@@ -31,21 +30,29 @@ const corsOptions = {
       callback(new Error('Not allowed by CORS'));
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
   credentials: true,
   optionsSuccessStatus: 200,
-  preflightContinue: false
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With', 
+    'Accept', 
+    'Origin', 
+    'Cache-Control', 
+    'Pragma'
+  ]
 };
 
-// Apply CORS middleware with options
 app.use(cors(corsOptions));
 
-// Additional security headers
+// Additional headers for CORS
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept, Authorization'
+  );
   next();
 });
 
@@ -78,15 +85,11 @@ app.use('/api', router);
 
 // Serve static files from the React build directory in production
 if (process.env.NODE_ENV === 'production') {
-  // Serve static files from the dist directory
   app.use(express.static(path.join(__dirname, '../dist')));
-
-  // Handle React routing, return all requests to React app
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../dist/index.html'));
   });
 } else {
-  // Default route for development
   app.get('/', (req, res) => {
     res.send('Phoenix Automotive API');
   });
@@ -103,7 +106,6 @@ app.use((err, req, res, next) => {
     details: null
   };
 
-  // Only log detailed errors in non-production environments
   if (process.env.NODE_ENV !== 'production') {
     console.error('Error caught in middleware:', {
       ...errorResponse,

@@ -1,237 +1,181 @@
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? '/api'  // In production, use relative path
-  : 'http://localhost:3000/api'; // In development, use full URL
+  ? '/api'
+  : 'http://localhost:3000/api';
 
 const defaultHeaders = {
-  'Cache-Control': 'no-cache',
-  'Pragma': 'no-cache',
   'Accept': 'application/json',
   'Content-Type': 'application/json'
 };
 
-const jsonHeaders = {
-  ...defaultHeaders,
-  'Content-Type': 'application/json'
-};
-
-const fetchOptions = {
-  credentials: 'include', // Important for CORS
-  mode: 'cors' // Explicitly state we want CORS
-};
-
 async function handleResponse(response) {
   if (!response.ok) {
-    let errorMessage;
-    try {
-      const errorData = await response.json();
-      errorMessage = errorData.message || errorData.error || `HTTP error! status: ${response.status}`;
-    } catch (error) {
-      errorMessage = `HTTP error! status: ${response.status} - ${error.message}`;
-    }
-    throw new Error(errorMessage);
+    throw new Error(`HTTP error! status: ${response.status}`);
   }
-  return response.json();
+
+  try {
+    // Get the raw text
+    let text = await response.text();
+
+    // Handle empty response
+    if (!text) {
+      return [];
+    }
+
+    // Try to parse as JSON
+    try {
+      // First attempt: direct parse
+      const data = JSON.parse(text);
+      return Array.isArray(data) ? data : [data];
+    } catch (firstError) {
+      console.error('First parse attempt failed:', firstError);
+      
+      try {
+        // Second attempt: clean the text and try again
+        text = text.replace(/[\u0000-\u0019]+/g, ""); // Remove control characters
+        const cleanedData = JSON.parse(text);
+        return Array.isArray(cleanedData) ? cleanedData : [cleanedData];
+      } catch (secondError) {
+        console.error('Second parse attempt failed:', secondError);
+        
+        try {
+          // Third attempt: try to extract array portion
+          const arrayMatch = text.match(/\[(.*)\]/s);
+          if (arrayMatch) {
+            const arrayContent = arrayMatch[0];
+            const parsedArray = JSON.parse(arrayContent);
+            return Array.isArray(parsedArray) ? parsedArray : [parsedArray];
+          }
+        } catch (thirdError) {
+          console.error('Third parse attempt failed:', thirdError);
+        }
+        
+        throw new Error('Failed to parse response data');
+      }
+    }
+  } catch (error) {
+    console.error('Response handling error:', error);
+    throw new Error('Failed to process response');
+  }
+}
+
+// Update the makeRequest function in apiClient.js
+async function makeRequest(url, options = {}) {
+  const finalOptions = {
+    ...options,
+    headers: {
+      ...defaultHeaders,
+      ...options.headers
+    },
+    mode: 'cors'
+  };
+
+  try {
+    console.log(`Making ${options.method || 'GET'} request to:`, url);
+    const response = await fetch(url, finalOptions);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorDetail;
+      try {
+        errorDetail = JSON.parse(errorText);
+      } catch {
+        errorDetail = errorText;
+      }
+      
+      throw new Error(`HTTP error! status: ${response.status}, details: ${JSON.stringify(errorDetail)}`);
+    }
+    
+    return response;
+  } catch (error) {
+    console.error('Network request failed:', {
+      url,
+      method: options.method || 'GET',
+      error: error.message,
+      stack: error.stack
+    });
+    throw error;
+  }
 }
 
 export const apiClient = {
-  // Dismantled vehicles methods
   dismantledVehicles: {
     getAll: async () => {
-      const url = `${API_BASE_URL}/dismantled-vehicles`;
-      console.log('apiClient making request to:', url);
-      
       try {
-        const response = await fetch(url, {
-          ...fetchOptions,
-          headers: defaultHeaders
-        });
-        console.log('apiClient received response:', {
-          ok: response.ok,
-          status: response.status,
-          statusText: response.statusText
-        });
-        return response;
+        const response = await makeRequest(`${API_BASE_URL}/dismantled-vehicles`);
+        const data = await handleResponse(response);
+        return Array.isArray(data) ? data : [];
       } catch (error) {
-        console.error('apiClient fetch error:', error);
-        throw error;
+        console.error('Failed to fetch vehicles:', error);
+        throw new Error('Failed to fetch vehicles');
       }
     },
-    getById: async (id) => {
-      const response = await fetch(`${API_BASE_URL}/dismantled-vehicles/${id}`, {
-        ...fetchOptions,
-        headers: defaultHeaders
-      });
-      return handleResponse(response);
-    },
-    create: async (data) => {
-      const response = await fetch(`${API_BASE_URL}/dismantled-vehicles`, {
-        ...fetchOptions,
-        method: 'POST',
-        headers: jsonHeaders,
-        body: JSON.stringify(data)
-      });
-      return handleResponse(response);
-    },
-    update: async (id, data) => {
-      const response = await fetch(`${API_BASE_URL}/dismantled-vehicles/${id}`, {
-        ...fetchOptions,
-        method: 'PUT',
-        headers: jsonHeaders,
-        body: JSON.stringify(data)
-      });
-      return handleResponse(response);
-    },
-    delete: async (id) => {
-      const response = await fetch(`${API_BASE_URL}/dismantled-vehicles/${id}`, {
-        ...fetchOptions,
-        method: 'DELETE',
-        headers: defaultHeaders
-      });
-      return handleResponse(response);
-    }
+    getById: (id) => makeRequest(`${API_BASE_URL}/dismantled-vehicles/${id}`).then(handleResponse),
+    create: (data) => makeRequest(`${API_BASE_URL}/dismantled-vehicles`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }).then(handleResponse),
+    update: (id, data) => makeRequest(`${API_BASE_URL}/dismantled-vehicles/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }).then(handleResponse),
+    delete: (id) => makeRequest(`${API_BASE_URL}/dismantled-vehicles/${id}`, {
+      method: 'DELETE'
+    }).then(handleResponse)
   },
 
-  // Retail vehicles methods
   retailVehicles: {
     getAll: async () => {
-      const url = `${API_BASE_URL}/retail-vehicles`;
-      console.log('apiClient making request to:', url);
-      
       try {
-        const response = await fetch(url, {
-          ...fetchOptions,
-          headers: defaultHeaders
-        });
-        console.log('apiClient received response:', {
-          ok: response.ok,
-          status: response.status,
-          statusText: response.statusText
-        });
-        return response;
+        const response = await makeRequest(`${API_BASE_URL}/retail-vehicles`);
+        const data = await handleResponse(response);
+        return Array.isArray(data) ? data : [];
       } catch (error) {
-        console.error('apiClient fetch error:', error);
-        throw error;
+        console.error('Failed to fetch vehicles:', error);
+        throw new Error('Failed to fetch vehicles');
       }
     },
-    getById: async (id) => {
-      const response = await fetch(`${API_BASE_URL}/retail-vehicles/${id}`, {
-        ...fetchOptions,
-        headers: defaultHeaders
-      });
-      return handleResponse(response);
-    },
-    create: async (data) => {
-      const response = await fetch(`${API_BASE_URL}/retail-vehicles`, {
-        ...fetchOptions,
-        method: 'POST',
-        headers: jsonHeaders,
-        body: JSON.stringify(data)
-      });
-      return handleResponse(response);
-    },
-    update: async (id, data) => {
-      const response = await fetch(`${API_BASE_URL}/retail-vehicles/${id}`, {
-        ...fetchOptions,
-        method: 'PUT',
-        headers: jsonHeaders,
-        body: JSON.stringify(data)
-      });
-      return handleResponse(response);
-    },
-    delete: async (id) => {
-      const response = await fetch(`${API_BASE_URL}/retail-vehicles/${id}`, {
-        ...fetchOptions,
-        method: 'DELETE',
-        headers: defaultHeaders
-      });
-      return handleResponse(response);
-    }
+    getById: (id) => makeRequest(`${API_BASE_URL}/retail-vehicles/${id}`).then(handleResponse),
+    create: (data) => makeRequest(`${API_BASE_URL}/retail-vehicles`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }).then(handleResponse),
+    update: (id, data) => makeRequest(`${API_BASE_URL}/retail-vehicles/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }).then(handleResponse),
+    delete: (id) => makeRequest(`${API_BASE_URL}/retail-vehicles/${id}`, {
+      method: 'DELETE'
+    }).then(handleResponse)
   },
 
-  // Part requests methods
   partRequests: {
-    create: async (data) => {
-      console.log('Creating part request:', data);
-      const response = await fetch(`${API_BASE_URL}/part-requests`, {
-        ...fetchOptions,
-        method: 'POST',
-        headers: jsonHeaders,
-        body: JSON.stringify(data)
-      });
-      return handleResponse(response);
-    },
-    getAll: async () => {
-      const url = `${API_BASE_URL}/part-requests`;
-      console.log('apiClient making request to:', url);
-      
-      try {
-        const response = await fetch(url, {
-          ...fetchOptions,
-          headers: defaultHeaders
-        });
-        console.log('apiClient received response:', {
-          ok: response.ok,
-          status: response.status,
-          statusText: response.statusText
-        });
-        return response;
-      } catch (error) {
-        console.error('apiClient fetch error:', error);
-        throw error;
-      }
-    },
-    getById: async (id) => {
-      const response = await fetch(`${API_BASE_URL}/part-requests/${id}`, {
-        ...fetchOptions,
-        headers: defaultHeaders
-      });
-      return handleResponse(response);
-    },
-    update: async (id, data) => {
-      const response = await fetch(`${API_BASE_URL}/part-requests/${id}`, {
-        ...fetchOptions,
-        method: 'PUT',
-        headers: jsonHeaders,
-        body: JSON.stringify(data)
-      });
-      return handleResponse(response);
-    }
+    create: (data) => makeRequest(`${API_BASE_URL}/part-requests`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }).then(handleResponse),
+    getAll: () => makeRequest(`${API_BASE_URL}/part-requests`).then(handleResponse),
+    getById: (id) => makeRequest(`${API_BASE_URL}/part-requests/${id}`).then(handleResponse),
+    update: (id, data) => makeRequest(`${API_BASE_URL}/part-requests/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }).then(handleResponse)
   },
 
-  // VIN validation methods
   vin: {
-    decode: async (vin) => {
-      console.log('Decoding VIN:', vin);
-      const response = await fetch(`${API_BASE_URL}/vin/decode`, {
-        ...fetchOptions,
-        method: 'POST',
-        headers: jsonHeaders,
-        body: JSON.stringify({ vin })
-      });
-      return handleResponse(response);
-    },
+    decode: (vin) => makeRequest(`${API_BASE_URL}/vin/decode`, {
+      method: 'POST',
+      body: JSON.stringify({ vin })
+    }).then(handleResponse),
     
-    validate: async (vin, vehicleInfo) => {
-      console.log('Validating VIN:', vin, vehicleInfo);
-      const response = await fetch(`${API_BASE_URL}/vin/validate`, {
-        ...fetchOptions,
-        method: 'POST',
-        headers: jsonHeaders,
-        body: JSON.stringify({ vin, vehicleInfo })
-      });
-      return handleResponse(response);
-    }
+    validate: (vin, vehicleInfo) => makeRequest(`${API_BASE_URL}/vin/validate`, {
+      method: 'POST',
+      body: JSON.stringify({ vin, vehicleInfo })
+    }).then(handleResponse)
   },
 
-  // Parts search methods
   parts: {
-    search: async (query) => {
-      console.log('Searching parts:', query);
-      const response = await fetch(`${API_BASE_URL}/parts/search?q=${encodeURIComponent(query)}`, {
-        ...fetchOptions,
-        headers: defaultHeaders
-      });
-      return handleResponse(response);
-    }
+    search: (query) => makeRequest(
+      `${API_BASE_URL}/parts/search?q=${encodeURIComponent(query)}`
+    ).then(handleResponse)
   }
 };

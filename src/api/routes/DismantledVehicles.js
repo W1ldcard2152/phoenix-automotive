@@ -1,4 +1,6 @@
+// src/api/routes/DismantledVehicles.js
 import { Router } from 'express';
+import mongoose from 'mongoose'; // Add this import
 import * as DismantledVehicleModel from '../models/DismantledVehicleModel.js';
 
 const router = Router();
@@ -10,6 +12,53 @@ const formatErrorResponse = (error) => {
   }
   return error.message || 'Internal server error';
 };
+
+// Get all dismantled vehicles
+router.get('/', async (req, res) => {
+  try {
+    console.log('Attempting to fetch vehicles...');
+    
+    // Check database connection
+    if (mongoose.connection.readyState !== 1) {
+      throw new Error('Database connection is not ready');
+    }
+    
+    const { status, dateFrom, dateTo, make, model, year } = req.query;
+    let query = {};
+
+    if (status) query.status = status;
+    if (make) query.make = new RegExp(make, 'i');
+    if (model) query.model = new RegExp(model, 'i');
+    if (year) query.year = parseInt(year);
+    
+    if (dateFrom || dateTo) {
+      query.dateAcquired = {};
+      if (dateFrom) query.dateAcquired.$gte = new Date(dateFrom);
+      if (dateTo) query.dateAcquired.$lte = new Date(dateTo);
+    }
+
+    console.log('Executing query:', JSON.stringify(query));
+
+    const vehicles = await DismantledVehicleModel.DismantledVehicle.find(query)
+      .sort({ dateAcquired: -1 })
+      .lean()
+      .exec();
+      
+    console.log(`Successfully fetched ${vehicles.length} vehicles`);
+    res.json(vehicles);
+    
+  } catch (error) {
+    console.error('Error fetching vehicles:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code
+    });
+    res.status(500).json({ 
+      error: error.message,
+      code: error.code
+    });
+  }
+});
 
 // Create dismantled vehicle
 router.post('/', async (req, res) => {
@@ -34,37 +83,6 @@ router.post('/', async (req, res) => {
     res.status(201).json(vehicle);
   } catch (error) {
     res.status(400).json({ error: formatErrorResponse(error) });
-  }
-});
-
-// Get all dismantled vehicles
-router.get('/', async (req, res) => {
-  try {
-    console.log('Attempting to fetch vehicles...');
-    
-    const { status, dateFrom, dateTo, make, model, year } = req.query;
-    let query = {};
-
-    if (status) query.status = status;
-    if (make) query.make = new RegExp(make, 'i');
-    if (model) query.model = new RegExp(model, 'i');
-    if (year) query.year = parseInt(year);
-    
-    if (dateFrom || dateTo) {
-      query.dateAcquired = {};
-      if (dateFrom) query.dateAcquired.$gte = new Date(dateFrom);
-      if (dateTo) query.dateAcquired.$lte = new Date(dateTo);
-    }
-
-    const vehicles = await DismantledVehicleModel.DismantledVehicle.find(query)
-      .sort({ dateAcquired: -1 });
-      
-    console.log('Successfully fetched vehicles:', vehicles.length);
-    res.json(vehicles);
-    
-  } catch (error) {
-    console.error('Error in GET /vehicles:', error);
-    res.status(500).json({ error: error.message });
   }
 });
 
