@@ -45,16 +45,25 @@ const VehicleInfoStep = ({
           />
           <Button
             type="button"
-            variant="secondary"
+            variant="default"
+            className="bg-red-600 hover:bg-red-700 text-white font-medium min-w-[110px] relative overflow-hidden transition-all"
             disabled={!vehicleInfo.vin || vehicleInfo.vin.length !== 17 || isLoading}
             onClick={handleVinLookup}
           >
             {isLoading ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <>
+                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                Searching...
+              </>
             ) : (
-              <Search className="h-4 w-4 mr-2" />
+              <>
+                <Search className="h-5 w-5 mr-2" />
+                Auto-Fill
+              </>
             )}
-            Lookup
+            {vehicleInfo.vin.length === 17 && !isLoading && (
+              <span className="absolute inset-0 bg-green-500/10 animate-pulse rounded-md"></span>
+            )}
           </Button>
         </div>
         {getFieldError('vin') && (

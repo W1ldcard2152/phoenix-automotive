@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { ResponsiveContainer } from '@/components/layout';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { Card } from "@/components/ui/card";
-import { Shield, Wrench, Tools, Clock, ArrowRight, Check } from 'lucide-react';
+import { Shield, Wrench, Clock, ArrowRight, Check } from 'lucide-react';
+import { Wrench as ToolIcon } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import RepairRequestForm from './repair/index';
 
@@ -100,9 +101,9 @@ const RepairServicesPage = () => {
                   icon={Shield}
                 />
                 <InfoCard
-                  title="ASE Certified"
-                  description="Our technicians are ASE certified with years of experience in automotive diagnosis and repair."
-                  icon={Tools}
+                  title="Experienced Technicians"
+                  description="Our experienced technicians have years of practical knowledge in automotive diagnosis and repair."
+                  icon={ToolIcon}
                 />
                 <InfoCard
                   title="Fast Turnaround"

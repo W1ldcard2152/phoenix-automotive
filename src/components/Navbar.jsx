@@ -1,9 +1,11 @@
 import { useState, useCallback, Suspense } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Phone, MessageSquare, Menu } from 'lucide-react';
+import { Phone, MessageSquare, Menu, Home, Settings, FileSearch, Car, HelpCircle } from 'lucide-react';
+import { Wrench as ToolIcon } from 'lucide-react';
 import { MobileDrawer } from '@/components/layout';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { Button } from "@/components/ui/button";
+import NavItem from './NavItem';
 
 const Navbar = () => {
   const location = useLocation();
@@ -32,40 +34,47 @@ const Navbar = () => {
   }, []);
 
   const navItems = [
-    { path: '/', label: 'Home' },
-    { path: '/parts', label: 'Shop Parts' },
-    { path: '/partsrequest', label: 'Request Parts' },
-    { path: '/repair', label: 'Repair Services' },
-    { path: '/inventory', label: 'Pre-Owned Vehicles' },
-    { path: '/contact', label: 'Contact' }
+    { path: '/', label: 'Home', icon: Home },
+    { path: '/parts', label: 'Shop Parts', icon: ToolIcon },
+    { path: '/partsrequest', label: 'Request Parts', icon: FileSearch },
+    { path: '/repair', label: 'Repair Services', icon: Settings },
+    { path: '/inventory', label: 'Pre-Owned Vehicles', icon: Car },
+    { path: '/contact', label: 'Contact', icon: HelpCircle }
   ];
 
   const renderNavItem = useCallback((item) => (
-    <Link
+    <NavItem
       key={item.path}
-      to={item.path}
-      className={`text-lg hover:text-red-700 transition-colors ${
-        location.pathname === item.path ? 'text-red-700 font-semibold' : 'text-gray-700'
-      }`}
-    >
-      {item.label}
-    </Link>
+      path={item.path}
+      label={item.label}
+      isActive={location.pathname === item.path}
+    />
   ), [location.pathname]);
 
-  const renderMobileNavItem = useCallback((item) => (
-    <Link
-      key={item.path}
-      to={item.path}
-      onClick={handleNavigation}
-      className={`block py-3 px-4 text-lg ${
-        location.pathname === item.path
-          ? 'bg-red-50 text-red-700 font-semibold'
-          : 'text-gray-700 hover:bg-gray-50'
-      }`}
-    >
-      {item.label}
-    </Link>
-  ), [location.pathname, handleNavigation]);
+  const renderMobileNavItem = useCallback((item) => {
+    // Safely handle the icon - if unavailable, don't render it
+    let Icon = null;
+    try {
+      Icon = item.icon;
+    } catch (e) {
+      console.error(`Error loading icon for ${item.label}:`, e);
+    }
+    return (
+      <Link
+        key={item.path}
+        to={item.path}
+        onClick={handleNavigation}
+        className={`block py-3 px-4 text-lg flex items-center ${
+          location.pathname === item.path
+            ? 'bg-red-50 text-red-700 font-semibold'
+            : 'text-gray-700 hover:bg-gray-50'
+        }`}
+      >
+        {Icon ? <Icon className="mr-3 h-5 w-5" /> : null}
+        {item.label}
+      </Link>
+    );
+  }, [location.pathname, handleNavigation]);
 
   const ContactInfo = useCallback(() => (
     <div className="flex items-center space-x-4 text-sm">

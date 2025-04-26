@@ -82,7 +82,7 @@ const Home = () => {
                 <Wrench className="h-8 w-8 text-red-700" />
               </div>
               <h3 className="text-xl font-bold mb-2">Expert Technicians</h3>
-              <p className="text-gray-600">ASE certified mechanics with years of experience in all types of vehicle repair.</p>
+              <p className="text-gray-600">Experienced mechanics with years of hands-on expertise in all types of vehicle repair.</p>
             </div>
 
             <div className="flex flex-col items-center text-center p-6 rounded-lg shadow-sm border bg-white">

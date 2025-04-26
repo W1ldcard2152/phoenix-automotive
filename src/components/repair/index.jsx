@@ -1,5 +1,6 @@
 import { useReducer, useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { showToast } from '@/utils/toastUtils';
 import StepIndicator from './ui/StepIndicator';
 import VehicleInfoStep from './steps/VehicleInfoStep';
