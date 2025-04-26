@@ -1,4 +1,4 @@
-import { ArrowRight, Phone, MapPin, MessageSquare } from 'lucide-react';
+import { ArrowRight, Phone, MapPin, MessageSquare, Wrench, Car, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { ResponsiveContainer } from '@/components/layout';
@@ -64,6 +64,57 @@ const Home = () => {
             </div>
           </ResponsiveContainer>
         </div>
+      </section>
+
+      {/* Repair Services Section - NEW */}
+      <section className="py-8 md:py-16">
+        <ResponsiveContainer>
+          <div className="text-center mb-8 md:mb-12">
+            <h2 className="text-2xl md:text-4xl font-bold mb-4">Professional Auto Repair Services</h2>
+            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+              Trusted, licensed automotive repair services for all makes and models with quality parts and expert technicians.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="flex flex-col items-center text-center p-6 rounded-lg shadow-sm border bg-white">
+              <div className="bg-red-100 p-3 rounded-full mb-4">
+                <Wrench className="h-8 w-8 text-red-700" />
+              </div>
+              <h3 className="text-xl font-bold mb-2">Expert Technicians</h3>
+              <p className="text-gray-600">ASE certified mechanics with years of experience in all types of vehicle repair.</p>
+            </div>
+
+            <div className="flex flex-col items-center text-center p-6 rounded-lg shadow-sm border bg-white">
+              <div className="bg-red-100 p-3 rounded-full mb-4">
+                <Car className="h-8 w-8 text-red-700" />
+              </div>
+              <h3 className="text-xl font-bold mb-2">All Makes & Models</h3>
+              <p className="text-gray-600">Comprehensive repair services for domestic and foreign vehicles of all years.</p>
+            </div>
+
+            <div className="flex flex-col items-center text-center p-6 rounded-lg shadow-sm border bg-white">
+              <div className="bg-red-100 p-3 rounded-full mb-4">
+                <Shield className="h-8 w-8 text-red-700" />
+              </div>
+              <h3 className="text-xl font-bold mb-2">Quality Guaranteed</h3>
+              <p className="text-gray-600">12-month/12,000 mile warranty on all repairs with OEM and premium aftermarket parts.</p>
+            </div>
+          </div>
+
+          <div className="mt-10 text-center">
+            <Button
+              size={isMobile ? "default" : "lg"}
+              className="bg-red-700 hover:bg-red-800 text-white"
+              asChild
+            >
+              <Link to="/repair" className="inline-flex items-center justify-center gap-2">
+                Schedule Service
+                <ArrowRight className="h-5 w-5" />
+              </Link>
+            </Button>
+          </div>
+        </ResponsiveContainer>
       </section>
 
       {/* Location Section */}

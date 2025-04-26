@@ -160,6 +160,22 @@ export const apiClient = {
       body: JSON.stringify(data)
     }).then(handleResponse)
   },
+  
+  repairRequests: {
+    create: (data) => makeRequest(`${API_BASE_URL}/repair-requests`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }).then(handleResponse),
+    getAll: () => makeRequest(`${API_BASE_URL}/repair-requests`).then(handleResponse),
+    getById: (id) => makeRequest(`${API_BASE_URL}/repair-requests/${id}`).then(handleResponse),
+    update: (id, data) => makeRequest(`${API_BASE_URL}/repair-requests/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }).then(handleResponse),
+    delete: (id) => makeRequest(`${API_BASE_URL}/repair-requests/${id}`, {
+      method: 'DELETE'
+    }).then(handleResponse)
+  },
 
   vin: {
     decode: (vin) => makeRequest(`${API_BASE_URL}/vin/decode`, {
@@ -177,5 +193,21 @@ export const apiClient = {
     search: (query) => makeRequest(
       `${API_BASE_URL}/parts/search?q=${encodeURIComponent(query)}`
     ).then(handleResponse)
+  },
+
+  repairRequests: {
+    create: (data) => makeRequest(`${API_BASE_URL}/repair-requests`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }).then(handleResponse),
+    getAll: () => makeRequest(`${API_BASE_URL}/repair-requests`).then(handleResponse),
+    getById: (id) => makeRequest(`${API_BASE_URL}/repair-requests/${id}`).then(handleResponse),
+    update: (id, data) => makeRequest(`${API_BASE_URL}/repair-requests/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }).then(handleResponse),
+    delete: (id) => makeRequest(`${API_BASE_URL}/repair-requests/${id}`, {
+      method: 'DELETE'
+    }).then(handleResponse)
   }
 };

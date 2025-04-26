@@ -10,6 +10,7 @@ import Navbar from './components/Navbar';
 import AdminPage from './components/admin/AdminPage';
 import VehicleDetails from './components/VehicleDetails';
 import PartsRequestPage from './components/PartsRequestPage';
+import RepairServicesPage from './components/RepairServicesPage';
 import { Toaster } from "@/components/ui/toaster"
 
 function App() {
@@ -28,6 +29,7 @@ function App() {
               <Route path="/inventory" element={<RetailVehiclesPage />} />
               <Route path="/inventory/:id" element={<VehicleDetails />} />
               <Route path="/partsrequest" element={<PartsRequestPage />} />
+              <Route path="/repair" element={<RepairServicesPage />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>

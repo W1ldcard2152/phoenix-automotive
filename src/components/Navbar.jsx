@@ -35,6 +35,7 @@ const Navbar = () => {
     { path: '/', label: 'Home' },
     { path: '/parts', label: 'Shop Parts' },
     { path: '/partsrequest', label: 'Request Parts' },
+    { path: '/repair', label: 'Repair Services' },
     { path: '/inventory', label: 'Pre-Owned Vehicles' },
     { path: '/contact', label: 'Contact' }
   ];

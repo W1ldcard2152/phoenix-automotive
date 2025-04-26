@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import dismantledVehiclesRouter from './routes/DismantledVehicles.js';
 import retailVehiclesRouter from './routes/RetailVehicles.js';
 import partRequestsRouter from './routes/PartRequests.js';
+import repairRequestsRouter from './routes/RepairRequests.js';
 import vinValidationRouter from './routes/validateVin.js';
 
 const router = Router();
@@ -74,6 +75,7 @@ console.log('Mounting routes...');
 router.use('/dismantled-vehicles', dismantledVehiclesRouter);
 router.use('/retail-vehicles', retailVehiclesRouter);
 router.use('/part-requests', partRequestsRouter);
+router.use('/repair-requests', repairRequestsRouter);
 router.use('/vin', vinValidationRouter);
 
 // Image upload route
