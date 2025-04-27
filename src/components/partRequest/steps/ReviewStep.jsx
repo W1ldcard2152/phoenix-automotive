@@ -113,6 +113,7 @@ const ReviewStep = ({
         <Button 
           onClick={onSubmit}
           disabled={isSubmitting}
+          className="bg-red-700 hover:bg-red-800 border border-red-700"
         >
           {isSubmitting ? (
             <>

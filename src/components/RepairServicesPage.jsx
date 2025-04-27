@@ -73,7 +73,7 @@ const RepairServicesPage = () => {
           <div className="absolute inset-0 bg-black/60" />
           
           <ResponsiveContainer
-            mobileClassName="absolute inset-0 flex items-start px-4 pt-12"
+            mobileClassName="absolute inset-0 flex items-center justify-center px-4"
             desktopClassName="absolute inset-0 container mx-auto px-4 flex items-center"
           >
             <div className="w-full max-w-3xl mx-auto text-center">
@@ -87,7 +87,7 @@ const RepairServicesPage = () => {
                 
                 <div className="flex flex-col sm:flex-row gap-3 pt-4 justify-center">
                   <Button 
-                    className="bg-red-700 hover:bg-red-800 text-white px-8 py-6 text-lg shadow-lg"
+                    className="bg-red-700 hover:bg-red-800 text-white px-8 py-6 text-lg shadow-lg mx-auto sm:mx-0"
                     onClick={toggleForm}
                   >
                     {showForm ? "View Our Services" : "Schedule Your Repair Now"}
@@ -106,8 +106,8 @@ const RepairServicesPage = () => {
           <RepairRequestForm onCancel={toggleForm} />
         ) : (
           <div className="space-y-16">
-            {/* How it Works Section - NEW */}
-            <section className="max-w-4xl mx-auto">
+            {/* How it Works Section - NEW - Desktop Only */}
+            <section className="max-w-4xl mx-auto hidden md:block">
               <h2 className="text-2xl font-bold mb-8 text-center">How It Works</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
                 {/* Connecting line for desktop */}
@@ -153,6 +153,17 @@ const RepairServicesPage = () => {
               <h2 className="text-2xl font-bold mb-2 text-center">Comprehensive Auto Repair Services</h2>
               <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto">From routine maintenance to complex repairs, our team has the expertise and equipment to keep your vehicle in optimal condition</p>
               
+              {/* CTA Button - Mobile Only */}
+              <div className="md:hidden text-center mb-8">
+                <Button
+                  onClick={toggleForm}
+                  className="bg-red-700 hover:bg-red-800 text-white px-6 py-2 shadow-md mx-auto"
+                >
+                  Get Started Now
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </div>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <ServiceCard
                   title="Diagnostic Services"
@@ -187,8 +198,8 @@ const RepairServicesPage = () => {
               </div>
             </section>
             
-            {/* Why Choose Us */}
-            <section className="bg-slate-50 p-8 rounded-lg">
+            {/* Why Choose Us - Desktop Only */}
+            <section className="bg-slate-50 p-8 rounded-lg hidden md:block">
               <h2 className="text-2xl font-bold mb-8 text-center">Why Choose Phoenix Automotive</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
@@ -219,6 +230,17 @@ const RepairServicesPage = () => {
                 </Button>
               </div>
             </section>
+            
+            {/* Final CTA - Mobile Only */}
+            <div className="md:hidden text-center mt-10 mb-6">
+              <Button
+                onClick={toggleForm}
+                className="bg-red-700 hover:bg-red-800 text-white px-6 py-2 shadow-md mx-auto"
+              >
+                Book Service Appointment
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </div>
             
 
           </div>

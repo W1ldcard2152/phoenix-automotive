@@ -52,19 +52,19 @@ const ReviewStep = ({
               </div>
             )}
             <div>
-              <dt className="font-medium">VIN</dt>
-              <dd className="font-mono">{vehicleInfo.vin}</dd>
-            </div>
-            <div>
               <dt className="font-medium">Mileage</dt>
               <dd>{vehicleInfo.mileage.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} miles</dd>
             </div>
             {vehicleInfo.engineSize && (
-              <div className="col-span-2">
+              <div>
                 <dt className="font-medium">Engine</dt>
                 <dd>{vehicleInfo.engineSize}</dd>
               </div>
             )}
+            <div className="col-span-2">
+              <dt className="font-medium">VIN</dt>
+              <dd className="font-mono">{vehicleInfo.vin}</dd>
+            </div>
           </dl>
         </CardContent>
       </Card>
