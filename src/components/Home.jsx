@@ -36,8 +36,8 @@ const Home = () => {
                 </h1>
                 
                 <p className="text-sm md:text-xl text-white max-w-2xl leading-relaxed">
-                  Your one stop shop for everything automotive. Need a part? Need it put on? tired of fixing the car and want to replace it altogether? We can help.
-                  If we can't do it ourselves, we can recommend someone who can. Stop by and see us! 
+                  Your one stop shop for everything automotive. Need a part? Need it installed? tired of fixing the car and want to replace it? We can help.
+                  If we can't do it, we'll recommend someone who can. Stop by and see us, you'll be glad you did.
                 </p>
                 
                 <div className="flex flex-col md:flex-row gap-3 md:gap-4 pt-2 md:pt-4">
@@ -72,7 +72,7 @@ const Home = () => {
           <div className="text-center mb-8 md:mb-12">
             <h2 className="text-2xl md:text-4xl font-bold mb-4">Professional Auto Repair Services</h2>
             <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-              Trusted, licensed automotive repair services for all makes and models with quality parts and expert technicians.
+              Automotive repair services for all makes and models with quality parts and expert technicians.
             </p>
           </div>
 
@@ -98,7 +98,7 @@ const Home = () => {
                 <Shield className="h-8 w-8 text-red-700" />
               </div>
               <h3 className="text-xl font-bold mb-2">Quality Guaranteed</h3>
-              <p className="text-gray-600">12-month/12,000 mile warranty on all repairs with OEM and premium aftermarket parts.</p>
+              <p className="text-gray-600">12-month/12,000 mile warranty on all repairs with new OEM parts and 3-month/3,000 mile warranty on all used/aftermarket parts.</p>
             </div>
           </div>
 
