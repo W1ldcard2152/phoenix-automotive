@@ -97,7 +97,7 @@ const RepairServicesPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <InfoCard
                   title="Quality Repairs"
-                  description="Factory-trained technicians using OEM and high-quality aftermarket parts for all makes and models."
+                  description="We use genuine OEM and premium aftermarket parts to ensure lasting quality for all makes and models."
                   icon={Shield}
                 />
                 <InfoCard

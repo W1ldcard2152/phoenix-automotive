@@ -46,7 +46,7 @@ const VehicleInfoStep = ({
           <Button
             type="button"
             variant="default"
-            className="bg-red-600 hover:bg-red-700 text-white font-medium min-w-[110px] relative overflow-hidden transition-all"
+            className="bg-red-600 hover:bg-red-700 text-white font-medium min-w-[140px] relative overflow-hidden transition-all"
             disabled={!vehicleInfo.vin || vehicleInfo.vin.length !== 17 || isLoading}
             onClick={handleVinLookup}
           >
