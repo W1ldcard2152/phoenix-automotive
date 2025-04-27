@@ -70,7 +70,7 @@ const RepairServicesPage = () => {
             className="absolute inset-0 w-full h-full object-cover md:object-center opacity-40"
             loading="lazy"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent" />
+          <div className="absolute inset-0 bg-black/60" />
           
           <ResponsiveContainer
             mobileClassName="absolute inset-0 flex items-start px-4 pt-12"
@@ -117,7 +117,7 @@ const RepairServicesPage = () => {
                 <div className="flex flex-col items-center text-center">
                   <div className="w-12 h-12 rounded-full bg-red-700 text-white flex items-center justify-center text-xl font-bold mb-4 relative z-10">1</div>
                   <h3 className="text-lg font-semibold mb-2">Schedule Service</h3>
-                  <p className="text-muted-foreground">Book your appointment online or give us a call for expert service</p>
+                  <p className="text-muted-foreground">Request a service appointment online</p>
                   <ArrowDown className="h-8 w-8 text-red-300 my-4 md:hidden" />
                 </div>
                 
@@ -166,12 +166,12 @@ const RepairServicesPage = () => {
                 />
                 <ServiceCard
                   title="Brake System Service"
-                  description="Full brake service including pad/shoe replacement, rotor/drum machining, fluid flush, and ABS diagnostics."
+                  description="Full brake service including pad/shoe replacement, fluid flush, and ABS, traction control, and stability system diagnostics."
                   icon={AlertCircle}
                 />
                 <ServiceCard
                   title="Transmission Service"
-                  description="Expert transmission diagnosis, repair, rebuilding, and replacement for both automatic and manual transmissions."
+                  description="Expert transmission diagnosis, repair, and replacement for both automatic and manual transmissions."
                   icon={Gauge}
                 />
                 <ServiceCard
@@ -184,18 +184,6 @@ const RepairServicesPage = () => {
                   description="Troubleshooting and repair of electrical issues, battery service, alternator replacement, and computer system diagnosis."
                   icon={Wrench}
                 />
-              </div>
-              
-              <div className="mt-12 p-6 bg-gradient-to-r from-[#1a1f2e] to-red-900 rounded-lg text-white text-center">
-                <h3 className="text-xl font-bold mb-4">Need auto repair services?</h3>
-                <p className="mb-6 max-w-2xl mx-auto">Our team specializes in all types of automotive repairs. From routine maintenance to complex diagnostics, we have the expertise to get your vehicle back on the road quickly and safely.</p>
-                <Button
-                  onClick={toggleForm}
-                  className="bg-white hover:bg-gray-100 text-red-900 font-bold px-8 py-3 text-lg shadow-lg"
-                >
-                  Schedule Your Service Now
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
               </div>
             </section>
             
@@ -211,7 +199,7 @@ const RepairServicesPage = () => {
                 />
                 <FeatureCard
                   title="Quality Parts"
-                  description="We use only OEM and premium aftermarket parts to ensure lasting performance and reliability."
+                  description="We use both OEM and premium aftermarket parts to ensure lasting performance and reliability."
                   icon={Wrench}
                 />
                 <FeatureCard
@@ -219,25 +207,6 @@ const RepairServicesPage = () => {
                   description="Most repairs are completed the same day to get you back on the road faster."
                   icon={Clock}
                 />
-              </div>
-              
-              {/* Testimonial - NEW */}
-              <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 mb-10 max-w-3xl mx-auto">
-                <div className="flex items-start gap-4">
-                  <div className="text-yellow-500 flex-shrink-0 mt-1">
-                    <div className="flex">
-                      <Star className="h-5 w-5 fill-current" />
-                      <Star className="h-5 w-5 fill-current" />
-                      <Star className="h-5 w-5 fill-current" />
-                      <Star className="h-5 w-5 fill-current" />
-                      <Star className="h-5 w-5 fill-current" />
-                    </div>
-                  </div>
-                  <div>
-                    <p className="italic text-gray-700 mb-2">"Phoenix Automotive is by far the best auto repair shop I've ever used. They diagnosed and fixed an issue that two other shops couldn't figure out. Fair pricing, quick service, and they took the time to explain everything."</p>
-                    <p className="text-sm font-semibold">— Robert M., Newark</p>
-                  </div>
-                </div>
               </div>
               
               <div className="text-center">
@@ -248,42 +217,10 @@ const RepairServicesPage = () => {
                   Book Your Service Appointment
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
-                <p className="mt-4 text-muted-foreground">No waiting - schedule online and get priority service</p>
               </div>
             </section>
             
-            {/* FAQ Section - NEW */}
-            <section className="max-w-3xl mx-auto">
-              <h2 className="text-2xl font-bold mb-8 text-center">Frequently Asked Questions</h2>
-              
-              <div className="space-y-4">
-                <div className="border border-gray-200 rounded-lg p-4">
-                  <h3 className="font-semibold text-lg mb-2">How long does a typical repair take?</h3>
-                  <p className="text-muted-foreground">Most routine repairs and maintenance services are completed the same day. For more complex issues, we'll provide an estimated completion time during the initial diagnosis.</p>
-                </div>
-                
-                <div className="border border-gray-200 rounded-lg p-4">
-                  <h3 className="font-semibold text-lg mb-2">Do you provide a warranty on repairs?</h3>
-                  <p className="text-muted-foreground">Yes, we offer a 12-month/12,000 mile warranty on parts and labor for most repairs. This gives you peace of mind knowing your vehicle is covered long after you leave our shop.</p>
-                </div>
-                
-                <div className="border border-gray-200 rounded-lg p-4">
-                  <h3 className="font-semibold text-lg mb-2">What brands and models do you service?</h3>
-                  <p className="text-muted-foreground">We work on all makes and models, including domestic, Asian, and European vehicles. From Fords and Chevys to Toyotas, Hondas, BMWs, and Mercedes - we service them all.</p>
-                </div>
-              </div>
-              
-              <div className="mt-10 text-center">
-                <p className="mb-4 text-lg">Ready to get your vehicle serviced by professionals you can trust?</p>
-                <Button
-                  onClick={toggleForm}
-                  className="bg-red-700 hover:bg-red-800 text-white px-8 py-3 text-lg"
-                >
-                  Schedule Now
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </div>
-            </section>
+
           </div>
         )}
       </ResponsiveContainer>

@@ -31,13 +31,13 @@ const Home = () => {
                     Newark's Premier
                   </span>
                   <span className="block text-xl md:text-5xl font-bold text-white leading-tight tracking-tight">
-                    Auto Parts Solution
+                  Automotive Solution
                   </span>
                 </h1>
                 
                 <p className="text-sm md:text-xl text-white max-w-2xl leading-relaxed">
-                  Where quality meets reliability. Every part in our 10,000+ part inventory is 
-                  professionally removed, photographed, and stored in our climate-controlled facility.
+                  Your one stop shop for everything automotive. Need a part? Need it put on? tired of fixing the car and want to replace it altogether? We can help.
+                  If we can't do it ourselves, we can recommend someone who can. Stop by and see us! 
                 </p>
                 
                 <div className="flex flex-col md:flex-row gap-3 md:gap-4 pt-2 md:pt-4">
