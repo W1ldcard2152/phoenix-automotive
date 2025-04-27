@@ -82,9 +82,9 @@ const Navbar = () => {
         <Phone size={16} className="text-red-700 mr-2" />
         <span>(315) 830-0008</span>
       </a>
-      <a href="sms:3154040570" className="flex items-center">
+      <a href="sms:coming-soon" className="flex items-center">
         <MessageSquare size={16} className="text-red-700 mr-2" />
-        <span>(315) 404-0570</span>
+        <span>Coming Soon</span>
       </a>
     </div>
   ), []);
@@ -174,12 +174,12 @@ const Navbar = () => {
                             <span>(315) 830-0008</span>
                           </a>
                           <a 
-                            href="sms:3154040570" 
+                            href="sms:coming-soon" 
                             className="flex items-center space-x-3"
                             aria-label="Text us"
                           >
                             <MessageSquare size={16} className="text-red-700" />
-                            <span>(315) 404-0570</span>
+                            <span>Coming Soon</span>
                           </a>
                           <div className="pt-4">
                             <div className="font-medium">Hours:</div>

@@ -44,9 +44,9 @@ const Contact = () => {
         
         <ContactItem 
           icon={MessageSquare}
-          href="sms:3154040570"
+          href="sms:coming-soon"
         >
-          (315) 404-0570
+          Coming Soon
         </ContactItem>
         
         <ContactItem icon={Clock}>

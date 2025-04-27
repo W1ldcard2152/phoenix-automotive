@@ -72,9 +72,9 @@ const DismantledVehiclesPage = () => {
             <span>Phone:</span>
             <span className="font-medium">(315) 830-0008</span>
           </a>
-          <a href="sms:3154040570" className="flex justify-between hover:text-red-700">
+          <a href="sms:coming-soon" className="flex justify-between hover:text-red-700">
             <span>Text:</span>
-            <span className="font-medium">(315) 404-0570</span>
+            <span className="font-medium">Coming Soon</span>
           </a>
           <div className="border-t pt-3">
             <p className="flex justify-between">

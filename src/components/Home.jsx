@@ -141,11 +141,11 @@ const Home = () => {
                   <span>(315) 830-0008</span>
                 </a>
                 <a 
-                  href="sms:3154040570"
+                  href="sms:coming-soon"
                   className="flex items-center space-x-3 hover:text-red-700 transition-colors"
                 >
                   <MessageSquare className="text-red-700 flex-shrink-0 h-5 w-5" />
-                  <span>(315) 404-0570</span>
+                  <span>Coming Soon</span>
                 </a>
                 <div className="text-gray-600 pt-2 mt-2 border-t border-gray-200">
                   <p className="font-semibold mb-2">Hours of Operation:</p>

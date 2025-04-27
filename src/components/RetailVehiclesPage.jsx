@@ -101,9 +101,9 @@ const RetailVehiclesPage = () => {
             <Phone className="h-4 w-4 text-red-700" />
             <span>(315) 830-0008</span>
           </a>
-          <a href="sms:3154040570" className="flex items-center gap-2 hover:text-red-700 transition-colors">
+          <a href="sms:coming-soon" className="flex items-center gap-2 hover:text-red-700 transition-colors">
             <MessageSquare className="h-4 w-4 text-red-700" />
-            <span>(315) 404-0570</span>
+            <span>Coming Soon</span>
           </a>
           <div className="border-t pt-3 mt-3">
             <p className="font-medium">Hours:</p>
