@@ -49,7 +49,7 @@ const RepairServicesPage = () => {
       <section className="relative bg-[#1a1f2e]">
         <div className="relative h-[400px] md:h-[400px] overflow-hidden">
           <img
-            src="/images/repair-service-bg.jpg"
+            src="/images/service-page-bg.jpg"
             alt="Auto Repair Services"
             className="absolute inset-0 w-full h-full object-cover md:object-center opacity-40"
             loading="lazy"

@@ -176,6 +176,7 @@ const ServiceInfoStep = ({
         <Button 
           type="button"
           onClick={onNext}
+          className="border border-primary"
         >
           Continue
         </Button>

@@ -58,7 +58,7 @@ const VehicleInfoStep = ({
             ) : (
               <>
                 <Search className="h-5 w-5 mr-2" />
-                Auto-Fill
+                Decode VIN
               </>
             )}
             {vehicleInfo.vin.length === 17 && !isLoading && (
@@ -184,6 +184,7 @@ const VehicleInfoStep = ({
         <Button 
           type="button"
           onClick={onNext}
+          className="border border-primary"
         >
           Continue
         </Button>

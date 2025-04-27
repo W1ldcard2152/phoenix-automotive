@@ -150,6 +150,7 @@ const ReviewStep = ({
           type="button"
           onClick={onSubmit}
           disabled={isSubmitting}
+          className="border border-primary"
         >
           {isSubmitting ? (
             <>

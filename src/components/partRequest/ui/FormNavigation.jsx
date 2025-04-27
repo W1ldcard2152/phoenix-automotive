@@ -24,7 +24,7 @@ const FormNavigation = ({
       <Button
         onClick={onNext}
         disabled={!canGoNext || isLoading}
-        className={canGoBack ? "" : "ml-auto"}
+        className={`border border-primary ${canGoBack ? "" : "ml-auto"}`}
       >
         {nextIcon}
         {nextLabel}

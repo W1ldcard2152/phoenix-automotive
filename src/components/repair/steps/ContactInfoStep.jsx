@@ -156,6 +156,7 @@ const ContactInfoStep = ({
         <Button 
           type="button"
           onClick={onNext}
+          className="border border-primary"
         >
           Review Request
         </Button>
