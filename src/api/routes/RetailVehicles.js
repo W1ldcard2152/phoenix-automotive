@@ -1,10 +1,12 @@
+// src/api/routes/RetailVehicles.js
 import { Router } from 'express';
 import * as RetailVehicleModel from '../models/RetailVehicleModel.js';
 import mongoose from 'mongoose';
+import { authenticateToken } from '../middleware/auth.js';
 
 const router = Router();
 
-// Get all Retail vehicles
+// Get all Retail vehicles - Public route
 router.get('/', async (req, res) => {
   try {
     console.log('Attempting to fetch vehicles...');
@@ -23,7 +25,7 @@ router.get('/', async (req, res) => {
       if (dateTo) query.dateAcquired.$lte = new Date(dateTo);
     }
 
-    const vehicles = await RetailVehicleModel.RetailVehicle.find(query)  // Changed from DismantledVehicle to RetailVehicle
+    const vehicles = await RetailVehicleModel.RetailVehicle.find(query)
       .sort({ dateAcquired: -1 });
       
     console.log('Successfully fetched vehicles:', vehicles.length);
@@ -35,7 +37,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get single retail vehicle by ID
+// Get single retail vehicle by ID - Public route
 router.get('/:id', async (req, res) => {
   try {
     console.log('Attempting to fetch retail vehicle by ID:', req.params.id);
@@ -73,8 +75,8 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create new retail vehicle
-router.post('/', async (req, res, next) => {
+// Create new retail vehicle - Protected route
+router.post('/', authenticateToken, async (req, res, next) => {
   try {
     console.log('Creating new retail vehicle with data:', req.body);
     
@@ -89,8 +91,8 @@ router.post('/', async (req, res, next) => {
   }
 });
 
-// Update retail vehicle
-router.put('/:id', async (req, res, next) => {
+// Update retail vehicle - Protected route
+router.put('/:id', authenticateToken, async (req, res, next) => {
   try {
     console.log('Updating retail vehicle:', req.params.id);
     console.log('Update data:', req.body);
@@ -118,8 +120,8 @@ router.put('/:id', async (req, res, next) => {
   }
 });
 
-// Delete retail vehicle
-router.delete('/:id', async (req, res, next) => {
+// Delete retail vehicle - Protected route
+router.delete('/:id', authenticateToken, async (req, res, next) => {
   try {
     console.log('Deleting retail vehicle:', req.params.id);
 

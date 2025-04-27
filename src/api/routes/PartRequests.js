@@ -1,10 +1,12 @@
+// src/api/routes/PartRequests.js
 import { Router } from 'express';
 import * as PartRequestModel from '../models/PartRequestModel.js';
 import mongoose from 'mongoose';
+import { authenticateToken } from '../middleware/auth.js';
 
 const router = Router();
 
-// Create a new part request
+// Create a new part request - Public route (for customers)
 router.post('/', async (req, res) => {
   try {
     console.log('Creating new part request with data:', req.body);
@@ -37,46 +39,10 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Get all part requests with optional filtering
-router.get('/', async (req, res) => {
+// Get all part requests with optional filtering - Protected route (admin only)
+router.get('/', authenticateToken, async (req, res) => {
   try {
     console.log('Fetching part requests with filters:', req.query);
-    const { status, dateFrom, dateTo } = req.query;
-    let query = {};
-    
-    if (status) {
-      query.status = status;
-    }
-    
-    if (dateFrom || dateTo) {
-      query.createdAt = {};
-      if (dateFrom) query.createdAt.$gte = new Date(dateFrom);
-      if (dateTo) query.createdAt.$lte = new Date(dateTo);
-    }
-
-    const requests = await PartRequestModel.PartRequest.find(query)
-      .sort({ createdAt: -1 });
-      
-    console.log(`Found ${requests.length} part requests`);
-    res.json(requests);
-  } catch (error) {
-    console.error('Error fetching part requests:', error);
-    res.status(500).json({
-      error: error.message
-    });
-  }
-});
-
-// Get a specific part request
-router.get('/', async (req, res) => {
-  try {
-    console.log('Fetching part requests...');
-    
-    // Check database connection
-    if (mongoose.connection.readyState !== 1) {
-      throw new Error('Database connection is not ready');
-    }
-    
     const { status, dateFrom, dateTo } = req.query;
     let query = {};
     
@@ -112,10 +78,36 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Update a part request
-router.put('/:id', async (req, res) => {
+// Get a specific part request - Protected route (admin only)
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    console.log('Received part request:', {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        error: 'Invalid request ID format'
+      });
+    }
+
+    const request = await PartRequestModel.PartRequest.findById(req.params.id);
+    
+    if (!request) {
+      return res.status(404).json({
+        error: 'Part request not found'
+      });
+    }
+
+    res.json(request);
+  } catch (error) {
+    console.error('Error fetching part request:', error);
+    res.status(500).json({
+      error: error.message
+    });
+  }
+});
+
+// Update a part request - Protected route (admin only)
+router.put('/:id', authenticateToken, async (req, res) => {
+  try {
+    console.log('Received part request update:', {
       body: req.body,
       headers: req.headers,
       url: req.url
@@ -152,8 +144,8 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Add a note to a part request
-router.post('/:id/notes', async (req, res) => {
+// Add a note to a part request - Protected route (admin only)
+router.post('/:id/notes', authenticateToken, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
@@ -199,8 +191,8 @@ router.post('/:id/notes', async (req, res) => {
   }
 });
 
-// Update the status of a part request
-router.patch('/:id/status', async (req, res) => {
+// Update the status of a part request - Protected route (admin only)
+router.patch('/:id/status', authenticateToken, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
@@ -247,8 +239,8 @@ router.patch('/:id/status', async (req, res) => {
   }
 });
 
-// Delete a part request
-router.delete('/:id', async (req, res) => {
+// Delete a part request - Protected route (admin only)
+router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({

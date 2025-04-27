@@ -7,6 +7,8 @@ import DismantledVehiclesPage from './components/DismantledVehiclesPage';
 import RetailVehiclesPage from './components/RetailVehiclesPage';
 import NotFound from './components/NotFound';
 import Navbar from './components/Navbar';
+import LoginPage from './components/admin/LoginPage';
+import ProtectedRoute from './components/admin/ProtectedRoute';
 import AdminPage from './components/admin/AdminPage';
 import VehicleDetails from './components/VehicleDetails';
 import PartsRequestPage from './components/PartsRequestPage';
@@ -19,21 +21,30 @@ function App() {
       <Toaster />
       <BrowserRouter>
         <div className="min-h-screen bg-background">
-          <Navbar />
-          <main>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/parts" element={<DismantledVehiclesPage />} />
-              <Route path="/inventory" element={<RetailVehiclesPage />} />
-              <Route path="/inventory/:id" element={<VehicleDetails />} />
-              <Route path="/partsrequest" element={<PartsRequestPage />} />
-              <Route path="/repair" element={<RepairServicesPage />} />
-              <Route path="/admin" element={<AdminPage />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </main>
+          <Routes>
+            {/* Public routes with navbar */}
+            <Route path="/" element={<><Navbar /><Home /></>} />
+            <Route path="/about" element={<><Navbar /><About /></>} />
+            <Route path="/contact" element={<><Navbar /><Contact /></>} />
+            <Route path="/parts" element={<><Navbar /><DismantledVehiclesPage /></>} />
+            <Route path="/inventory" element={<><Navbar /><RetailVehiclesPage /></>} />
+            <Route path="/inventory/:id" element={<><Navbar /><VehicleDetails /></>} />
+            <Route path="/partsrequest" element={<><Navbar /><PartsRequestPage /></>} />
+            <Route path="/repair" element={<><Navbar /><RepairServicesPage /></>} />
+            
+            {/* Login route (no navbar) */}
+            <Route path="/login" element={<LoginPage />} />
+            
+            {/* Protected admin route (no navbar) */}
+            <Route path="/admin/*" element={
+              <ProtectedRoute>
+                <AdminPage />
+              </ProtectedRoute>
+            } />
+            
+            {/* 404 route with navbar */}
+            <Route path="*" element={<><Navbar /><NotFound /></>} />
+          </Routes>
         </div>
       </BrowserRouter>
     </>

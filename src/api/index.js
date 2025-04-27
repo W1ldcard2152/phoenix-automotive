@@ -10,6 +10,8 @@ import retailVehiclesRouter from './routes/RetailVehicles.js';
 import partRequestsRouter from './routes/PartRequests.js';
 import repairRequestsRouter from './routes/RepairRequests.js';
 import vinValidationRouter from './routes/validateVin.js';
+import authRouter from './routes/Auth.js';
+import { authenticateToken } from './middleware/auth.js';
 
 const router = Router();
 
@@ -72,14 +74,19 @@ const upload = multer({
 
 // Mount routes
 console.log('Mounting routes...');
-router.use('/dismantled-vehicles', dismantledVehiclesRouter);
-router.use('/retail-vehicles', retailVehiclesRouter);
-router.use('/part-requests', partRequestsRouter);
-router.use('/repair-requests', repairRequestsRouter);
+
+// Public routes
+router.use('/auth', authRouter);
 router.use('/vin', vinValidationRouter);
 
-// Image upload route
-router.post('/upload', upload.single('image'), async (req, res) => {
+// Protected admin routes
+router.use('/dismantled-vehicles', authenticateToken, dismantledVehiclesRouter);
+router.use('/retail-vehicles', authenticateToken, retailVehiclesRouter);
+router.use('/part-requests', authenticateToken, partRequestsRouter);
+router.use('/repair-requests', authenticateToken, repairRequestsRouter);
+
+// Protected image upload route
+router.post('/upload', authenticateToken, upload.single('image'), async (req, res) => {
   try {
     console.log('Upload request received:', {
       hasFile: !!req.file,

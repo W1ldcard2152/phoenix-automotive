@@ -1,7 +1,8 @@
 // src/api/routes/DismantledVehicles.js
 import { Router } from 'express';
-import mongoose from 'mongoose'; // Add this import
+import mongoose from 'mongoose';
 import * as DismantledVehicleModel from '../models/DismantledVehicleModel.js';
+import { authenticateToken } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -13,7 +14,7 @@ const formatErrorResponse = (error) => {
   return error.message || 'Internal server error';
 };
 
-// Get all dismantled vehicles
+// Get all dismantled vehicles - Public route
 router.get('/', async (req, res) => {
   try {
     console.log('Attempting to fetch vehicles...');
@@ -60,8 +61,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Create dismantled vehicle
-router.post('/', async (req, res) => {
+// Create dismantled vehicle - Protected route
+router.post('/', authenticateToken, async (req, res) => {
   try {
     const requiredFields = ['stockNumber', 'make', 'model', 'year', 'vin', 'mileage'];
     const missingFields = requiredFields.filter(field => !req.body[field]);
@@ -86,8 +87,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Get single dismantled vehicle
-router.get('/:id', async (req, res) => {  // Note the /:id parameter
+// Get single dismantled vehicle - Public route
+router.get('/:id', async (req, res) => {
   try {
     const vehicle = await DismantledVehicleModel.DismantledVehicle.findById(req.params.id);
     if (!vehicle) {
@@ -99,8 +100,8 @@ router.get('/:id', async (req, res) => {  // Note the /:id parameter
   }
 });
 
-// Update dismantled vehicle
-router.put('/:id', async (req, res) => {
+// Update dismantled vehicle - Protected route
+router.put('/:id', authenticateToken, async (req, res) => {
   try {
     if (req.body.vin && req.body.vin.length !== 17) {
       return res.status(400).json({ error: 'VIN must be exactly 17 characters' });
@@ -133,8 +134,8 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Update dismantled vehicle status
-router.patch('/:id/status', async (req, res) => {
+// Update dismantled vehicle status - Protected route
+router.patch('/:id/status', authenticateToken, async (req, res) => {
   try {
     const { status } = req.body;
     if (!['Awaiting Dismantle', 'Parts Available', 'Scrapped'].includes(status)) {
@@ -157,8 +158,8 @@ router.patch('/:id/status', async (req, res) => {
   }
 });
 
-// Delete dismantled vehicle
-router.delete('/:id', async (req, res) => {
+// Delete dismantled vehicle - Protected route
+router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const vehicle = await DismantledVehicleModel.DismantledVehicle.findByIdAndDelete(req.params.id);
     
