@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import router from './api/index.js';
 import connectDB from './api/config/db.js';
+import { securityHeaders } from './api/middleware/security.js';
+import { secureCookies, cookieParser } from './api/middleware/cookies.js';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -52,14 +54,16 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Security headers middleware
+// Apply security middleware
+app.use(securityHeaders);
+app.use(cookieParser);
+app.use(secureCookies);
+
+// CORS related headers
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  res.header('X-Content-Type-Options', 'nosniff');
-  res.header('X-Frame-Options', 'SAMEORIGIN');
-  res.header('X-XSS-Protection', '1; mode=block');
+    'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-CSRF-Token');
   next();
 });
 

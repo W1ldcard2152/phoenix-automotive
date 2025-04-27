@@ -13,8 +13,11 @@ const projectRoot = path.resolve(__dirname, '../');
 // Load environment variables
 dotenv.config({ path: path.join(projectRoot, '.env') });
 
-// Get MongoDB URI from environment variables
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/phoenix_automotive';
+// Get MongoDB connection details from environment variables
+const DATABASE_NAME = process.env.MONGODB_DATABASE || 'phoenix_automotive';
+
+// Construct the connection string
+const MONGODB_URI = process.env.MONGODB_URI || `mongodb+srv://${process.env.MONGODB_USER}:${process.env.MONGODB_PASSWORD}@${process.env.MONGODB_CLUSTER}/${DATABASE_NAME}?${process.env.MONGODB_OPTIONS}` || 'mongodb://localhost:27017/phoenix_automotive';
 
 // Default admin credentials - change these as needed
 const DEFAULT_USERNAME = 'admin';

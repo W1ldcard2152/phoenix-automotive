@@ -12,6 +12,8 @@ import repairRequestsRouter from './routes/RepairRequests.js';
 import vinValidationRouter from './routes/validateVin.js';
 import authRouter from './routes/Auth.js';
 import { authenticateToken } from './middleware/auth.js';
+import { csrfProtection } from './middleware/csrf.js';
+import { securityHeaders, rateLimit } from './middleware/security.js';
 
 const router = Router();
 
@@ -72,21 +74,25 @@ const upload = multer({
   }
 });
 
+// Apply global middleware
+router.use(securityHeaders);
+router.use(rateLimit);
+
 // Mount routes
 console.log('Mounting routes...');
 
 // Public routes
-router.use('/auth', authRouter);
+router.use('/auth', csrfProtection, authRouter);
 router.use('/vin', vinValidationRouter);
 
 // Protected admin routes
-router.use('/dismantled-vehicles', authenticateToken, dismantledVehiclesRouter);
-router.use('/retail-vehicles', authenticateToken, retailVehiclesRouter);
-router.use('/part-requests', authenticateToken, partRequestsRouter);
-router.use('/repair-requests', authenticateToken, repairRequestsRouter);
+router.use('/dismantled-vehicles', csrfProtection, authenticateToken, dismantledVehiclesRouter);
+router.use('/retail-vehicles', csrfProtection, authenticateToken, retailVehiclesRouter);
+router.use('/part-requests', csrfProtection, authenticateToken, partRequestsRouter);
+router.use('/repair-requests', csrfProtection, authenticateToken, repairRequestsRouter);
 
 // Protected image upload route
-router.post('/upload', authenticateToken, upload.single('image'), async (req, res) => {
+router.post('/upload', csrfProtection, authenticateToken, upload.single('image'), async (req, res) => {
   try {
     console.log('Upload request received:', {
       hasFile: !!req.file,
