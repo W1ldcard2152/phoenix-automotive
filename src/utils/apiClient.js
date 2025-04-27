@@ -134,7 +134,25 @@ export const apiClient = {
         throw new Error('Failed to fetch vehicles');
       }
     },
-    getById: (id) => makeRequest(`${API_BASE_URL}/retail-vehicles/${id}`).then(handleResponse),
+    getById: async (id) => {
+      try {
+        if (!id) throw new Error('Vehicle ID is required');
+        console.log('Fetching retail vehicle by ID:', id);
+        
+        const response = await makeRequest(`${API_BASE_URL}/retail-vehicles/${id}`);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Error response:', errorText);
+          throw new Error(`Failed to fetch vehicle: ${response.status} ${response.statusText}`);
+        }
+        
+        return response.json();
+      } catch (error) {
+        console.error('Failed to fetch vehicle by ID:', error);
+        throw error;
+      }
+    },
     create: (data) => makeRequest(`${API_BASE_URL}/retail-vehicles`, {
       method: 'POST',
       body: JSON.stringify(data)

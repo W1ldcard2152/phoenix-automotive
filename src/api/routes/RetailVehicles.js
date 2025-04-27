@@ -36,35 +36,32 @@ router.get('/', async (req, res) => {
 });
 
 // Get single retail vehicle by ID
-router.get('/', async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    console.log('Attempting to fetch retail vehicles...');
+    console.log('Attempting to fetch retail vehicle by ID:', req.params.id);
     
     // Check database connection
     if (mongoose.connection.readyState !== 1) {
       throw new Error('Database connection is not ready');
     }
     
-    const { status, make, model, year } = req.query;
-    let query = {};
+    // Validate ID
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid vehicle ID format' });
+    }
 
-    if (status) query.status = status;
-    if (make) query.make = new RegExp(make, 'i');
-    if (model) query.model = new RegExp(model, 'i');
-    if (year) query.year = parseInt(year);
-
-    console.log('Executing query:', JSON.stringify(query));
-
-    const vehicles = await RetailVehicleModel.RetailVehicle.find(query)
-      .sort({ createdAt: -1 })
-      .lean()
-      .exec();
-      
-    console.log(`Successfully fetched ${vehicles.length} vehicles`);
-    res.json(vehicles);
+    const vehicle = await RetailVehicleModel.RetailVehicle.findById(req.params.id);
+    
+    if (!vehicle) {
+      console.log('No vehicle found with ID:', req.params.id);
+      return res.status(404).json({ message: 'Vehicle not found' });
+    }
+    
+    console.log('Found vehicle:', vehicle._id);
+    res.json(vehicle);
     
   } catch (error) {
-    console.error('Error fetching retail vehicles:', {
+    console.error('Error fetching retail vehicle by ID:', {
       message: error.message,
       stack: error.stack,
       code: error.code

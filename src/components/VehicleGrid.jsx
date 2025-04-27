@@ -1,4 +1,5 @@
 import PropTypes from 'prop-types';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, Wrench, CircleDot } from 'lucide-react';
@@ -6,7 +7,10 @@ import { Calendar, Clock, Wrench, CircleDot } from 'lucide-react';
 const STATUS_COLORS = {
   'Parts Available': 'bg-green-500',
   'Awaiting Dismantle': 'bg-yellow-500',
-  'Scrapped': 'bg-red-500'
+  'Scrapped': 'bg-red-500',
+  'available': 'bg-green-500',
+  'pending': 'bg-yellow-500',
+  'sold': 'bg-red-500'
 };
 
 const VehicleGrid = ({ vehicles }) => {
@@ -14,25 +18,29 @@ const VehicleGrid = ({ vehicles }) => {
     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
       {vehicles.map((vehicle) => (
         <Card key={vehicle._id} className="overflow-hidden">
-          <div className="relative h-56"> {/* Increased from h-48 to h-56 */}
-            <img 
-              src={vehicle.imageUrl || "/api/placeholder/400/300"} 
-              alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-              className="w-full h-full object-cover"
-            />
-            <Badge 
-              className={`absolute top-2 right-2 ${
-                STATUS_COLORS[vehicle.status] || 'bg-gray-500'
-              }`}
-            >
-              {vehicle.status || "Unknown Status"}
-            </Badge>
-          </div>
+          <Link to={`/inventory/${vehicle._id}`} className="block">
+            <div className="relative h-56"> {/* Increased from h-48 to h-56 */}
+              <img 
+                src={vehicle.imageUrl || "/api/placeholder/400/300"} 
+                alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
+                className="w-full h-full object-cover"
+              />
+              <Badge 
+                className={`absolute top-2 right-2 ${
+                  STATUS_COLORS[vehicle.status] || 'bg-gray-500'
+                }`}
+              >
+                {vehicle.status || "Unknown Status"}
+              </Badge>
+            </div>
+          </Link>
           
           <CardHeader>
             <div className="flex justify-between items-start">
               <CardTitle className="text-xl">
-                {vehicle.year} {vehicle.make} {vehicle.model} {vehicle.trim}
+                <Link to={`/inventory/${vehicle._id}`} className="hover:text-red-700">
+                  {vehicle.year} {vehicle.make} {vehicle.model} {vehicle.trim}
+                </Link>
               </CardTitle>
               <span className="text-sm text-muted-foreground">
                 Stock #{vehicle.stockNumber}

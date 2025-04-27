@@ -34,22 +34,26 @@ const RetailVehiclesPage = () => {
 
   const VehicleCard = ({ vehicle }) => (
     <Card className="overflow-hidden bg-white hover:shadow-lg transition-shadow">
-      <div className="relative aspect-w-16 aspect-h-12">
-        <img 
-          src={vehicle.imageUrl || "/api/placeholder/400/300"} 
-          alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-          className="w-full h-full object-cover"
-          loading="lazy"
-        />
-        {vehicle.status && (
-          <div className="absolute top-2 right-2 bg-green-500 text-white text-sm px-2 py-1 rounded">
-            {vehicle.status}
-          </div>
-        )}
-      </div>
+      <Link to={`/inventory/${vehicle._id}`} className="block">
+        <div className="relative aspect-w-16 aspect-h-12">
+          <img 
+            src={vehicle.imageUrl || "/api/placeholder/400/300"} 
+            alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
+            className="w-full h-full object-cover cursor-pointer"
+            loading="lazy"
+          />
+          {vehicle.status && (
+            <div className="absolute top-2 right-2 bg-green-500 text-white text-sm px-2 py-1 rounded">
+              {vehicle.status}
+            </div>
+          )}
+        </div>
+      </Link>
       <div className="p-4 md:p-6">
         <h3 className="text-lg md:text-xl font-bold mb-3">
-          {vehicle.year} {vehicle.make} {vehicle.model} {vehicle.trim}
+          <Link to={`/inventory/${vehicle._id}`} className="hover:text-red-700 transition-colors">
+            {vehicle.year} {vehicle.make} {vehicle.model} {vehicle.trim}
+          </Link>
         </h3>
         <div className="space-y-3 mb-6">
           {vehicle.price && (
