@@ -7,6 +7,8 @@
     "dev:server": "nodemon src/server.js --watch src/api",
     "dev:client": "vite",
     "build": "npm install -g vite && vite build",
+    "start": "node src/server.js",
+    "start:dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "lint": "eslint .",
     "preview": "vite preview",
     "create-admin": "node scripts/createAdminUser.js"
@@ -30,6 +32,7 @@
     "cloudinary": "^1.41.3",
     "clsx": "^2.1.0",
     "cmdk": "^1.0.0",
+    "concurrently": "^8.2.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "eslint": "^8.55.0",
