@@ -7,7 +7,8 @@ import { jwtDecode } from 'jwt-decode';
 
 // Session timeout in minutes
 const SESSION_TIMEOUT = 30;
-const INACTIVITY_WARNING = 25; // Show warning after 25 minutes
+const INACTIVITY_WARNING = 25; // Show warning after 25 minutes of inactivity
+// Warning duration will be SESSION_TIMEOUT - INACTIVITY_WARNING = 5 minutes
 
 const ProtectedRoute = ({ children }) => {
   const [loading, setLoading] = useState(true);
@@ -42,51 +43,76 @@ const ProtectedRoute = ({ children }) => {
   // Function to setup session timeout
   const setupSessionTimeout = () => {
     // Clear existing timeouts
-    if (timeoutIdRef.current) clearTimeout(timeoutIdRef.current);
-    if (warningIdRef.current) clearTimeout(warningIdRef.current);
+    if (timeoutIdRef.current) {
+      console.log('Clearing existing timeout');
+      clearTimeout(timeoutIdRef.current);
+    }
+    if (warningIdRef.current) {
+      console.log('Clearing existing warning timeout');
+      clearTimeout(warningIdRef.current);
+    }
 
-    // Set warning timeout
+    // Debug log
+    console.log('Setting up new session timeout, warning after', INACTIVITY_WARNING, 'minutes');
+
+    // Set warning timeout to appear after inactivity
+    // Cast to milliseconds, minutes * 60 seconds * 1000 milliseconds
+    const warningDelay = INACTIVITY_WARNING * 60 * 1000;
     warningIdRef.current = setTimeout(() => {
+      console.log('Showing timeout warning');
       setShowTimeout(true);
       
-      // Start countdown
-      let countdown = (SESSION_TIMEOUT - INACTIVITY_WARNING) * 60;
+      // Start countdown - The user has 5 minutes to act
+      const warningDuration = (SESSION_TIMEOUT - INACTIVITY_WARNING) * 60;
+      let countdown = warningDuration;
       setTimeRemaining(countdown);
       
+      // Set up countdown interval
       const countdownInterval = setInterval(() => {
         countdown -= 1;
         setTimeRemaining(countdown);
         
         if (countdown <= 0) {
+          console.log('Countdown reached zero');
           clearInterval(countdownInterval);
         }
       }, 1000);
       
-      // Set actual timeout
+      // Set actual logout timeout
       timeoutIdRef.current = setTimeout(() => {
+        console.log('Session timeout reached, logging out');
         logout();
         setAuthenticated(false);
-      }, (SESSION_TIMEOUT - INACTIVITY_WARNING) * 60 * 1000);
+        // Force redirect to login page
+        window.location.href = '/login';
+      }, warningDuration * 1000);
       
-    }, INACTIVITY_WARNING * 60 * 1000);
+    }, warningDelay);
   };
 
   // Function to extend session
   const extendSession = async () => {
     try {
+      console.log('Attempting to extend session...');
       const newToken = await refreshToken();
+      
+      // Reset the timer and hide warning regardless of token result
+      setShowTimeout(false);
+      lastActivityRef.current = Date.now();
+      setupSessionTimeout();
+      
+      // Check token outcome for debugging
       if (newToken) {
-        setShowTimeout(false);
-        lastActivityRef.current = Date.now();
-        setupSessionTimeout();
+        console.log('Session extended successfully');
       } else {
-        logout();
-        setAuthenticated(false);
+        console.warn('Token refresh failed, but keeping session active');
+        // Don't logout immediately to prevent disruption
       }
     } catch (error) {
       console.error('Error extending session:', error);
-      logout();
-      setAuthenticated(false);
+      // Don't immediately logout on error to prevent disruption
+      // Just hide the warning and let the user continue
+      setShowTimeout(false);
     }
   };
 
@@ -99,8 +125,10 @@ const ProtectedRoute = ({ children }) => {
       const expiresAt = decoded.exp * 1000; // Convert to milliseconds
       const timeUntilExpiry = expiresAt - Date.now();
       
-      // If token expires soon, set warning
-      if (timeUntilExpiry < INACTIVITY_WARNING * 60 * 1000) {
+      // Only show warning if token expires soon AND more than 1 minute remaining
+      // This prevents immediate warnings after login
+      if (timeUntilExpiry < INACTIVITY_WARNING * 60 * 1000 && timeUntilExpiry > 60000) {
+        console.log('Token will expire soon, showing warning');
         setShowTimeout(true);
         setTimeRemaining(Math.floor(timeUntilExpiry / 1000));
       }
@@ -154,12 +182,18 @@ const ProtectedRoute = ({ children }) => {
   // Set up activity tracking
   useEffect(() => {
     // Track user activity
-    const events = ['mousedown', 'keydown', 'touchstart', 'scroll'];
+    const events = ['mousedown', 'keydown', 'touchstart', 'scroll', 'mousemove'];
     
-    const trackActivity = () => handleUserActivity();
+    const trackActivity = () => {
+      // Only update if it's been at least 5 seconds since last activity update
+      // This prevents excessive updates
+      if (Date.now() - lastActivityRef.current > 5000) {
+        handleUserActivity();
+      }
+    };
     
     events.forEach(event => {
-      window.addEventListener(event, trackActivity);
+      window.addEventListener(event, trackActivity, { passive: true });
     });
     
     return () => {
@@ -184,7 +218,16 @@ const ProtectedRoute = ({ children }) => {
   if (showTimeout) {
     // Show session timeout warning
     return (
-      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+      <div 
+        className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+        onClick={(e) => {
+          // Close when clicking the backdrop (outside the modal)
+          if (e.target === e.currentTarget) {
+            // Handle click outside of modal - extend session
+            extendSession();
+          }
+        }}
+      >
         <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold">Session Timeout Warning</h2>
@@ -200,7 +243,11 @@ const ProtectedRoute = ({ children }) => {
           <div className="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:space-x-4 sm:justify-end">
             <button
               className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 text-gray-700 font-medium transition-colors"
-              onClick={() => logout()}
+              onClick={() => {
+                logout();
+                // Navigate to login after logout
+                window.location.href = '/login';
+              }}
             >
               Logout Now
             </button>

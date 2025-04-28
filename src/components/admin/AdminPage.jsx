@@ -5,23 +5,51 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { LogOut, RefreshCw, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { jwtDecode } from 'jwt-decode';
 import DismantledVehicleManager from './DismantledVehicleManager';
 import RetailVehicleManager from './RetailVehicleManager';
 import PartsRequestManager from './PartsRequestManager';
 import RepairRequestManager from './RepairRequestManager';
 
 const SessionTimer = ({ onRefresh }) => {
+  const { token } = useAuth();
   const [timeLeft, setTimeLeft] = useState(30 * 60); // 30 minutes in seconds
   const [isWarning, setIsWarning] = useState(false);
   
+  // Update time left based on token expiry
+  useEffect(() => {
+    if (!token) return;
+    
+    try {
+      // Get token expiry time
+      const decoded = jwtDecode(token);
+      const expiresAt = decoded.exp * 1000; // Convert to milliseconds
+      const timeUntilExpiry = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+      
+      console.log('Token expires in:', Math.floor(timeUntilExpiry / 60), 'minutes');
+      
+      // Update time left
+      setTimeLeft(timeUntilExpiry);
+      
+      // Set warning state
+      setIsWarning(timeUntilExpiry <= 300); // 5 minutes
+    } catch (error) {
+      console.error('Error decoding token in timer:', error);
+    }
+  }, [token]);
+  
+  // Countdown timer
   useEffect(() => {
     const interval = setInterval(() => {
       setTimeLeft(prevTime => {
+        const newTime = prevTime > 0 ? prevTime - 1 : 0;
+        
         // When less than 5 minutes remain, show warning
-        if (prevTime <= 300 && !isWarning) {
+        if (newTime <= 300 && !isWarning) {
           setIsWarning(true);
         }
-        return prevTime > 0 ? prevTime - 1 : 0;
+        
+        return newTime;
       });
     }, 1000);
     
@@ -35,6 +63,19 @@ const SessionTimer = ({ onRefresh }) => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
   
+  const handleRefresh = async () => {
+    try {
+      const success = await onRefresh();
+      if (success) {
+        // Only reset warning if refresh was successful
+        setIsWarning(false);
+        console.log('Timer reset after successful token refresh');
+      }
+    } catch (error) {
+      console.error('Session refresh failed:', error);
+    }
+  };
+  
   return (
     <div className={`flex items-center gap-2 ${isWarning ? 'text-amber-500' : 'text-gray-500'}`}>
       <Clock className="h-4 w-4" />
@@ -43,11 +84,8 @@ const SessionTimer = ({ onRefresh }) => {
         variant="ghost" 
         size="sm" 
         className="h-7 w-7 p-0" 
-        onClick={() => {
-          onRefresh();
-          setTimeLeft(30 * 60);
-          setIsWarning(false);
-        }}
+        onClick={handleRefresh}
+        title="Refresh session"
       >
         <RefreshCw className="h-4 w-4" />
       </Button>
@@ -60,12 +98,21 @@ const AdminPage = () => {
   const { logout, refreshToken } = useAuth();
   
   const handleRefreshSession = async () => {
+    console.log('Manually refreshing session token...');
     try {
-      await refreshToken();
+      const newToken = await refreshToken();
+      if (newToken) {
+        console.log('Session refreshed successfully');
+        return true;
+      } else {
+        console.warn('Failed to get new token');
+        // Don't log out immediately, just return false
+        return false;
+      }
     } catch (error) {
       console.error('Failed to refresh session:', error);
-      // If refresh fails, log the user out
-      handleLogout();
+      // Don't log out immediately, just return false
+      return false;
     }
   };
 

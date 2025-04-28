@@ -73,6 +73,7 @@ export const AuthProvider = ({ children }) => {
   // Initialize auth state and get CSRF token from cookie
   useEffect(() => {
     const initialize = async () => {
+      console.log('Initializing auth state...');
       setLoading(true);
       
       try {
@@ -303,14 +304,30 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (!token || !tokenExpiry) return;
     
-    const timeUntilRefresh = tokenExpiry - Date.now() - (5 * 60 * 1000); // Refresh 5 min before expiry
-    const refreshInterval = Math.max(1000, timeUntilRefresh); // Min 1 second
+    // Calculate time until refresh (5 minutes before expiry)
+    const timeUntilRefresh = tokenExpiry - Date.now() - (5 * 60 * 1000); 
+    console.log('Time until token refresh:', Math.floor(timeUntilRefresh / 1000 / 60), 'minutes');
+    
+    // If timeUntilRefresh is negative, refresh immediately
+    if (timeUntilRefresh <= 0) {
+      console.log('Token expiring soon or already expired, refreshing immediately');
+      refreshToken();
+      return;
+    }
+    
+    // Ensure the refresh interval is at least 1 second but no more than 30 minutes
+    const refreshInterval = Math.max(1000, Math.min(timeUntilRefresh, 30 * 60 * 1000));
+    console.log('Setting token refresh in', Math.floor(refreshInterval / 1000 / 60), 'minutes');
     
     const intervalId = setTimeout(() => {
+      console.log('Refreshing token on schedule');
       refreshToken();
     }, refreshInterval);
     
-    return () => clearTimeout(intervalId);
+    return () => {
+      console.log('Clearing token refresh timer');
+      clearTimeout(intervalId);
+    };
   }, [token, tokenExpiry, refreshToken]);
 
   const value = {
