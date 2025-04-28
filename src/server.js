@@ -48,7 +48,8 @@ const corsOptions = {
     'Accept', 
     'Origin', 
     'Cache-Control', 
-    'Pragma'
+    'Pragma',
+    'X-CSRF-Token'
   ],
   maxAge: 86400 // CORS preflight cache for 24 hours
 };
@@ -64,9 +65,23 @@ app.use(rateLimit);
 
 // CORS related headers
 app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Allow-Headers',
     'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-CSRF-Token');
+  
+  // Handle OPTIONS requests explicitly
+  if (req.method === 'OPTIONS') {
+    // Explicitly set the allowed headers for OPTIONS requests
+    res.header('Access-Control-Allow-Headers',
+      'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-CSRF-Token');
+    return res.status(200).end(); // Changed from 204 to 200 to fix some browsers' behavior
+  }
+  
   next();
 });
 

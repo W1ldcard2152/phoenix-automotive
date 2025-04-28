@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { Button } from "@/components/ui/button";
 import { Image, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { apiClient } from '@/utils/apiClient';
 
 const ImageUpload = ({ onImageUploaded, className }) => {
   const [uploading, setUploading] = useState(false);
@@ -46,55 +47,25 @@ const ImageUpload = ({ onImageUploaded, className }) => {
       const formData = new FormData();
       formData.append('image', file);
 
-      const response = await fetch('/api/upload', { 
-        method: 'POST',
-        body: formData
-      });
-
-      console.log('Upload response status:', response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Upload failed:', {
-          status: response.status,
-          statusText: response.statusText,
-          errorText
-        });
-
-        // Try to parse error response as JSON
-        try {
-          const errorJson = JSON.parse(errorText);
-          throw new Error(errorJson.error || errorJson.details || 'Upload failed');
-        } catch (e) {
-          throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
-        }
-      }
-
-      // Try to parse the successful response
-      const text = await response.text();
-      console.log('Response text:', text);
-
-      if (!text) {
-        throw new Error('Empty response from server');
-      }
-
       try {
-        const data = JSON.parse(text);
-        if (!data.url) {
-          throw new Error('No URL in response');
-        }
-
+        const data = await apiClient.upload.image(formData);
         console.log('Upload successful:', {
           url: data.url,
           publicId: data.public_id
         });
-
+        
+        if (!data.url) {
+          throw new Error('No URL in response');
+        }
+        
         onImageUploaded(data.url);
         setError(null);
       } catch (e) {
-        console.error('JSON parse error:', e);
-        throw new Error('Invalid response format from server');
+        console.error('Error processing upload response:', e);
+        throw new Error('Failed to process upload response');
       }
+
+
     } catch (error) {
       console.error('Upload error:', error);
       setError(error.message || 'Failed to upload image');

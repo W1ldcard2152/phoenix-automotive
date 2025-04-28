@@ -10,6 +10,16 @@ export const csrfProtection = (req, res, next) => {
     return next();
   }
   
+  // Skip for public routes that need to be accessible
+  const publicPostRoutes = [
+    '/api/part-requests',
+    '/api/repair-requests'
+  ];
+  
+  if (publicPostRoutes.some(route => req.originalUrl.startsWith(route))) {
+    return next();
+  }
+  
   const csrfToken = req.headers['x-csrf-token'];
   
   if (!csrfToken) {

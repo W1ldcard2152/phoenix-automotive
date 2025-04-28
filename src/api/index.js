@@ -85,14 +85,97 @@ console.log('Mounting routes...');
 router.use('/auth', csrfProtection, authRouter);
 router.use('/vin', vinValidationRouter);
 
-// Protected admin routes
-router.use('/dismantled-vehicles', csrfProtection, authenticateToken, dismantledVehiclesRouter);
-router.use('/retail-vehicles', csrfProtection, authenticateToken, retailVehiclesRouter);
-router.use('/part-requests', csrfProtection, authenticateToken, partRequestsRouter);
-router.use('/repair-requests', csrfProtection, authenticateToken, repairRequestsRouter);
+// Modified route handling for dismantled vehicles - public GET access
+router.get('/dismantled-vehicles', async (req, res, next) => {
+  try {
+    // Forward to the dismantled vehicles router's handler
+    req.url = '/'; // Reset the URL for the forwarded request
+    dismantledVehiclesRouter.handle(req, res, next);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Modified route handling for retail vehicles - public GET access
+router.get('/retail-vehicles', async (req, res, next) => {
+  try {
+    // Forward to the retail vehicles router's handler
+    req.url = '/'; // Reset the URL for the forwarded request
+    retailVehiclesRouter.handle(req, res, next);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Get single dismantled vehicle - public route
+router.get('/dismantled-vehicles/:id', (req, res, next) => {
+  // Forward to the dismantled vehicles router's handler
+  const originalUrl = req.url;
+  req.url = `/${req.params.id}`; // Reset the URL for the forwarded request
+  dismantledVehiclesRouter.handle(req, res, (err) => {
+    if (err) {
+      req.url = originalUrl; // Restore original URL if there's an error
+      next(err);
+    }
+  });
+});
+
+// Get single retail vehicle - public route
+router.get('/retail-vehicles/:id', (req, res, next) => {
+  // Forward to the retail vehicles router's handler
+  const originalUrl = req.url;
+  req.url = `/${req.params.id}`; // Reset the URL for the forwarded request
+  retailVehiclesRouter.handle(req, res, (err) => {
+    if (err) {
+      req.url = originalUrl; // Restore original URL if there's an error
+      next(err);
+    }
+  });
+});
+
+// Create part request - public route
+router.post('/part-requests', async (req, res, next) => {
+  try {
+    // Forward to the part requests router's handler
+    req.url = '/'; 
+    partRequestsRouter.handle(req, res, next);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Handle OPTIONS preflight requests for repair requests
+router.options('/repair-requests', (req, res) => {
+  res.header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.status(204).end();
+});
+
+// Create repair request - public route
+router.post('/repair-requests', async (req, res, next) => {
+  try {
+    // Set CORS headers for this specific endpoint
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    
+    // Forward to the repair requests router's handler
+    req.url = '/'; 
+    repairRequestsRouter.handle(req, res, next);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Protected admin routes - moved to /admin prefix
+router.use('/admin/dismantled-vehicles', csrfProtection, authenticateToken, dismantledVehiclesRouter);
+router.use('/admin/retail-vehicles', csrfProtection, authenticateToken, retailVehiclesRouter);
+router.use('/admin/part-requests', csrfProtection, authenticateToken, partRequestsRouter);
+router.use('/admin/repair-requests', csrfProtection, authenticateToken, repairRequestsRouter);
 
 // Protected image upload route
-router.post('/upload', csrfProtection, authenticateToken, upload.single('image'), async (req, res) => {
+router.post('/admin/upload', csrfProtection, authenticateToken, upload.single('image'), async (req, res) => {
   try {
     console.log('Upload request received:', {
       hasFile: !!req.file,

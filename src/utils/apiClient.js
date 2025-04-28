@@ -7,6 +7,28 @@ const defaultHeaders = {
   'Content-Type': 'application/json'
 };
 
+// Get CSRF token from cookie
+const getCsrfToken = () => {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; csrfToken=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+};
+
+// Add CSRF token to headers for non-GET requests
+const addCsrfToken = (method, headers) => {
+  if (method !== 'GET') {
+    const csrfToken = getCsrfToken();
+    if (csrfToken) {
+      return {
+        ...headers,
+        'X-CSRF-Token': csrfToken
+      };
+    }
+  }
+  return headers;
+};
+
 async function handleResponse(response) {
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
@@ -60,13 +82,16 @@ async function handleResponse(response) {
 
 // Update the makeRequest function in apiClient.js
 async function makeRequest(url, options = {}) {
+  const { method = 'GET' } = options;
+  
   const finalOptions = {
     ...options,
-    headers: {
+    headers: addCsrfToken(method, {
       ...defaultHeaders,
       ...options.headers
-    },
-    mode: 'cors'
+    }),
+    mode: 'cors',
+    credentials: 'include'
   };
 
   try {
@@ -74,15 +99,26 @@ async function makeRequest(url, options = {}) {
     const response = await fetch(url, finalOptions);
     
     if (!response.ok) {
-      const errorText = await response.text();
-      let errorDetail;
+      const status = response.status;
+      let errorMessage = `HTTP error! status: ${status}`;
+      
       try {
-        errorDetail = JSON.parse(errorText);
-      } catch {
-        errorDetail = errorText;
+        // Try to get a more detailed error message from the response
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorData.message || errorMessage;
+      } catch (e) {
+        // If JSON parsing fails, try to get text content
+        try {
+          const errorText = await response.text();
+          if (errorText) errorMessage = errorText;
+        } catch (textError) {
+          // If both JSON and text parsing fail, use status text
+          errorMessage = response.statusText || errorMessage;
+        }
       }
       
-      throw new Error(`HTTP error! status: ${response.status}, details: ${JSON.stringify(errorDetail)}`);
+      console.error(`API Error: ${errorMessage}`);
+      throw new Error(errorMessage);
     }
     
     return response;
@@ -110,15 +146,15 @@ export const apiClient = {
       }
     },
     getById: (id) => makeRequest(`${API_BASE_URL}/dismantled-vehicles/${id}`).then(handleResponse),
-    create: (data) => makeRequest(`${API_BASE_URL}/dismantled-vehicles`, {
+    create: (data) => makeRequest(`${API_BASE_URL}/admin/dismantled-vehicles`, {
       method: 'POST',
       body: JSON.stringify(data)
     }).then(handleResponse),
-    update: (id, data) => makeRequest(`${API_BASE_URL}/dismantled-vehicles/${id}`, {
+    update: (id, data) => makeRequest(`${API_BASE_URL}/admin/dismantled-vehicles/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data)
     }).then(handleResponse),
-    delete: (id) => makeRequest(`${API_BASE_URL}/dismantled-vehicles/${id}`, {
+    delete: (id) => makeRequest(`${API_BASE_URL}/admin/dismantled-vehicles/${id}`, {
       method: 'DELETE'
     }).then(handleResponse)
   },
@@ -153,15 +189,15 @@ export const apiClient = {
         throw error;
       }
     },
-    create: (data) => makeRequest(`${API_BASE_URL}/retail-vehicles`, {
+    create: (data) => makeRequest(`${API_BASE_URL}/admin/retail-vehicles`, {
       method: 'POST',
       body: JSON.stringify(data)
     }).then(handleResponse),
-    update: (id, data) => makeRequest(`${API_BASE_URL}/retail-vehicles/${id}`, {
+    update: (id, data) => makeRequest(`${API_BASE_URL}/admin/retail-vehicles/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data)
     }).then(handleResponse),
-    delete: (id) => makeRequest(`${API_BASE_URL}/retail-vehicles/${id}`, {
+    delete: (id) => makeRequest(`${API_BASE_URL}/admin/retail-vehicles/${id}`, {
       method: 'DELETE'
     }).then(handleResponse)
   },
@@ -171,26 +207,47 @@ export const apiClient = {
       method: 'POST',
       body: JSON.stringify(data)
     }).then(handleResponse),
-    getAll: () => makeRequest(`${API_BASE_URL}/part-requests`).then(handleResponse),
-    getById: (id) => makeRequest(`${API_BASE_URL}/part-requests/${id}`).then(handleResponse),
-    update: (id, data) => makeRequest(`${API_BASE_URL}/part-requests/${id}`, {
+    getAll: () => makeRequest(`${API_BASE_URL}/admin/part-requests`).then(handleResponse),
+    getById: (id) => makeRequest(`${API_BASE_URL}/admin/part-requests/${id}`).then(handleResponse),
+    update: (id, data) => makeRequest(`${API_BASE_URL}/admin/part-requests/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data)
     }).then(handleResponse)
   },
   
   repairRequests: {
-    create: (data) => makeRequest(`${API_BASE_URL}/repair-requests`, {
-      method: 'POST',
-      body: JSON.stringify(data)
-    }).then(handleResponse),
-    getAll: () => makeRequest(`${API_BASE_URL}/repair-requests`).then(handleResponse),
-    getById: (id) => makeRequest(`${API_BASE_URL}/repair-requests/${id}`).then(handleResponse),
-    update: (id, data) => makeRequest(`${API_BASE_URL}/repair-requests/${id}`, {
+    create: async (data) => {
+      try {
+        const csrfToken = getCsrfToken();
+        const response = await fetch(`${API_BASE_URL}/repair-requests`, {
+          method: 'POST',
+          headers: {
+            ...defaultHeaders,
+            'X-CSRF-Token': csrfToken || ''
+          },
+          credentials: 'include',
+          body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Error response from repair request:', errorText);
+          throw new Error(`Failed to submit repair request: ${response.status}`);
+        }
+        
+        return response.json();
+      } catch (error) {
+        console.error('Repair request submission error:', error);
+        throw error;
+      }
+    },
+    getAll: () => makeRequest(`${API_BASE_URL}/admin/repair-requests`).then(handleResponse),
+    getById: (id) => makeRequest(`${API_BASE_URL}/admin/repair-requests/${id}`).then(handleResponse),
+    update: (id, data) => makeRequest(`${API_BASE_URL}/admin/repair-requests/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data)
     }).then(handleResponse),
-    delete: (id) => makeRequest(`${API_BASE_URL}/repair-requests/${id}`, {
+    delete: (id) => makeRequest(`${API_BASE_URL}/admin/repair-requests/${id}`, {
       method: 'DELETE'
     }).then(handleResponse)
   },
@@ -213,19 +270,30 @@ export const apiClient = {
     ).then(handleResponse)
   },
 
-  repairRequests: {
-    create: (data) => makeRequest(`${API_BASE_URL}/repair-requests`, {
-      method: 'POST',
-      body: JSON.stringify(data)
-    }).then(handleResponse),
-    getAll: () => makeRequest(`${API_BASE_URL}/repair-requests`).then(handleResponse),
-    getById: (id) => makeRequest(`${API_BASE_URL}/repair-requests/${id}`).then(handleResponse),
-    update: (id, data) => makeRequest(`${API_BASE_URL}/repair-requests/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data)
-    }).then(handleResponse),
-    delete: (id) => makeRequest(`${API_BASE_URL}/repair-requests/${id}`, {
-      method: 'DELETE'
-    }).then(handleResponse)
+  // Delete this duplicate entry
+  
+  // Add image upload utility
+  upload: {
+    image: (formData) => {
+      // Don't use JSON for FormData
+      const csrfToken = getCsrfToken();
+      console.log('Using CSRF token for upload:', csrfToken ? 'token present' : 'token missing');
+      
+      return fetch(`${API_BASE_URL}/admin/upload`, {
+        method: 'POST',
+        headers: {
+          'X-CSRF-Token': csrfToken || ''
+        },
+        body: formData,
+        credentials: 'include'
+      }).then(async (response) => {
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Upload failed response:', errorText);
+          throw new Error(`Upload failed: ${errorText}`);
+        }
+        return response.json();
+      });
+    }
   }
 };
