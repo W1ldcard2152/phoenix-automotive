@@ -70,17 +70,46 @@ export const AuthProvider = ({ children }) => {
     }
   }, [refreshing, token, csrfToken]);
 
-  // Initialize auth state and set up CSRF token
+  // Initialize auth state and get CSRF token from cookie
   useEffect(() => {
     const initialize = async () => {
       setLoading(true);
       
       try {
-        // Generate a CSRF token (simple implementation - in production use a library)
-        const newCsrfToken = Math.random().toString(36).substring(2, 15) + 
-                          Math.random().toString(36).substring(2, 15);
-        setCsrfToken(newCsrfToken);
-        localStorage.setItem('csrfToken', newCsrfToken);
+        // Get CSRF token from cookie
+        const getCookie = (name) => {
+          const value = `; ${document.cookie}`;
+          const parts = value.split(`; ${name}=`);
+          if (parts.length === 2) return parts.pop().split(';').shift();
+          return null;
+        };
+        
+        const cookieCsrfToken = getCookie('csrfToken');
+        
+        // If no CSRF token in cookie, make a GET request to the server to set one
+        if (!cookieCsrfToken) {
+          try {
+            await fetch('/api/auth/csrf', { method: 'GET', credentials: 'include' });
+            const newCsrfToken = getCookie('csrfToken');
+            if (newCsrfToken) {
+              setCsrfToken(newCsrfToken);
+            } else {
+              console.warn('Failed to get CSRF token from server');
+              // Fallback method if server doesn't set the cookie
+              const fallbackToken = Math.random().toString(36).substring(2, 15) + 
+                                 Math.random().toString(36).substring(2, 15);
+              setCsrfToken(fallbackToken);
+            }
+          } catch (error) {
+            console.error('Failed to get CSRF token:', error);
+            // Fallback method
+            const fallbackToken = Math.random().toString(36).substring(2, 15) + 
+                               Math.random().toString(36).substring(2, 15);
+            setCsrfToken(fallbackToken);
+          }
+        } else {
+          setCsrfToken(cookieCsrfToken);
+        }
         
         // Get stored token
         const storedToken = localStorage.getItem('authToken');

@@ -2,8 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import router from './api/index.js';
 import connectDB from './api/config/db.js';
-import { securityHeaders } from './api/middleware/security.js';
+import { securityHeaders, rateLimit } from './api/middleware/security.js';
 import { secureCookies, cookieParser } from './api/middleware/cookies.js';
+import { csrfProtection, setCsrfToken } from './api/middleware/csrf.js';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -58,6 +59,8 @@ app.use(cors(corsOptions));
 app.use(securityHeaders);
 app.use(cookieParser);
 app.use(secureCookies);
+app.use(setCsrfToken);
+app.use(rateLimit);
 
 // CORS related headers
 app.use((req, res, next) => {

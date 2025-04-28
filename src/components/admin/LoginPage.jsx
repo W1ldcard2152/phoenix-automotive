@@ -17,12 +17,22 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockedUntil, setLockedUntil] = useState(null);
 
   // Get the intended destination, if any
   const from = location.state?.from?.pathname || '/admin';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Check if account is locked
+    if (lockedUntil && lockedUntil > Date.now()) {
+      const remainingTime = Math.ceil((lockedUntil - Date.now()) / 1000 / 60);
+      setError(`Too many failed attempts. Please try again in ${remainingTime} minute(s).`);
+      return;
+    }
+    
     if (!username || !password) {
       setError('Please enter both username and password');
       return;
@@ -35,10 +45,28 @@ const LoginPage = () => {
       // Use the login function from AuthContext
       await login(username, password);
       
+      // Reset failed attempts on successful login
+      setFailedAttempts(0);
+      setLockedUntil(null);
+      
       // Navigate to the intended destination or admin dashboard
       navigate(from, { replace: true });
     } catch (err) {
-      setError(err.message || 'Authentication failed');
+      // Increment failed attempts
+      const newFailedAttempts = failedAttempts + 1;
+      setFailedAttempts(newFailedAttempts);
+      
+      // Implement progressive delays based on failed attempts
+      // 3 attempts: 1 minute, 5 attempts: 15 minutes
+      if (newFailedAttempts >= 5) {
+        setLockedUntil(Date.now() + 15 * 60 * 1000); // 15 minutes
+        setError('Too many failed attempts. Account locked for 15 minutes.');
+      } else if (newFailedAttempts >= 3) {
+        setLockedUntil(Date.now() + 1 * 60 * 1000); // 1 minute
+        setError('Too many failed attempts. Account locked for 1 minute.');
+      } else {
+        setError(err.message || 'Authentication failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -46,7 +74,7 @@ const LoginPage = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md shadow-xl border-gray-200">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Admin Login</CardTitle>
         </CardHeader>

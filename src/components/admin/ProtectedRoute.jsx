@@ -186,23 +186,34 @@ const ProtectedRoute = ({ children }) => {
     return (
       <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
         <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
-          <h2 className="text-xl font-bold mb-4">Session Timeout Warning</h2>
-          <p className="mb-4">
-            Your session will expire in {Math.floor(timeRemaining / 60)}:{String(timeRemaining % 60).padStart(2, '0')} due to inactivity.
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold">Session Timeout Warning</h2>
+            <div className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm font-medium">
+              {Math.floor(timeRemaining / 60)}:{String(timeRemaining % 60).padStart(2, '0')}
+            </div>
+          </div>
+          
+          <p className="mb-6 text-gray-600">
+            Your session is about to expire due to inactivity. Any unsaved changes may be lost.
           </p>
-          <div className="flex justify-end space-x-4">
+          
+          <div className="flex flex-col space-y-3 sm:flex-row sm:space-y-0 sm:space-x-4 sm:justify-end">
             <button
-              className="px-4 py-2 border rounded-md hover:bg-gray-100"
+              className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 text-gray-700 font-medium transition-colors"
               onClick={() => logout()}
             >
-              Logout
+              Logout Now
             </button>
             <button
-              className="px-4 py-2 bg-red-700 text-white rounded-md hover:bg-red-800"
+              className="px-4 py-2 bg-red-700 text-white rounded-md hover:bg-red-800 font-medium transition-colors shadow-sm"
               onClick={extendSession}
             >
               Continue Session
             </button>
+          </div>
+          
+          <div className="mt-4 text-xs text-gray-500 text-center">
+            For security reasons, your session will automatically expire after 30 minutes of inactivity.
           </div>
         </div>
       </div>

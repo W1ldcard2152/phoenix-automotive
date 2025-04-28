@@ -3,6 +3,7 @@ import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/UserModel.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { generateCsrfToken } from '../middleware/csrf.js';
 
 const router = Router();
 
@@ -269,6 +270,27 @@ router.post('/change-password', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Password change error:', error);
     res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
+// CSRF token endpoint
+router.get('/csrf', (req, res) => {
+  try {
+    // Generate a new CSRF token
+    const token = generateCsrfToken();
+    
+    // Set as cookie - needs to be accessible by JavaScript
+    res.cookie('csrfToken', token, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    });
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('CSRF token generation error:', error);
+    res.status(500).json({ error: 'Failed to generate CSRF token' });
   }
 });
 
