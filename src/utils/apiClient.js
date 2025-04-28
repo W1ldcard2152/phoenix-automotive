@@ -84,15 +84,36 @@ async function handleResponse(response) {
 async function makeRequest(url, options = {}) {
   const { method = 'GET' } = options;
   
+  // Get authentication token from localStorage
+  const authToken = localStorage.getItem('authToken');
+  const isAdminRoute = url.includes('/admin/');
+  console.log(`Auth for ${url}: Token ${authToken ? 'found' : 'missing'}, Admin route: ${isAdminRoute}`);
+  
+  // If this is an admin route and no token is found, log a warning
+  if (isAdminRoute && !authToken) {
+    console.warn('⚠️ Attempting to access admin route without auth token:', url);
+  }
+  
   const finalOptions = {
     ...options,
     headers: addCsrfToken(method, {
       ...defaultHeaders,
+      ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
       ...options.headers
     }),
     mode: 'cors',
     credentials: 'include'
   };
+  
+  // Log the complete request configuration for admin routes
+  if (isAdminRoute) {
+    console.log('Admin request config:', {
+      url,
+      method: finalOptions.method || 'GET',
+      hasAuthHeader: !!finalOptions.headers?.Authorization,
+      hasCsrfToken: !!finalOptions.headers?.['X-CSRF-Token']
+    });  
+  }
 
   try {
     console.log(`Making ${options.method || 'GET'} request to:`, url);
@@ -137,7 +158,12 @@ export const apiClient = {
   dismantledVehicles: {
     getAll: async () => {
       try {
-        const response = await makeRequest(`${API_BASE_URL}/dismantled-vehicles`);
+        // For the admin panel, use the admin route instead of the public route
+        const isAdminPanel = window.location.pathname.includes('/admin');
+        const endpoint = isAdminPanel ? `${API_BASE_URL}/admin/dismantled-vehicles` : `${API_BASE_URL}/dismantled-vehicles`;
+        console.log('Using endpoint for getAll dismantled vehicles:', endpoint);
+        
+        const response = await makeRequest(endpoint);
         const data = await handleResponse(response);
         return Array.isArray(data) ? data : [];
       } catch (error) {
@@ -162,7 +188,12 @@ export const apiClient = {
   retailVehicles: {
     getAll: async () => {
       try {
-        const response = await makeRequest(`${API_BASE_URL}/retail-vehicles`);
+        // For the admin panel, use the admin route instead of the public route
+        const isAdminPanel = window.location.pathname.includes('/admin');
+        const endpoint = isAdminPanel ? `${API_BASE_URL}/admin/retail-vehicles` : `${API_BASE_URL}/retail-vehicles`;
+        console.log('Using endpoint for getAll retail vehicles:', endpoint);
+        
+        const response = await makeRequest(endpoint);
         const data = await handleResponse(response);
         return Array.isArray(data) ? data : [];
       } catch (error) {
@@ -207,7 +238,18 @@ export const apiClient = {
       method: 'POST',
       body: JSON.stringify(data)
     }).then(handleResponse),
-    getAll: () => makeRequest(`${API_BASE_URL}/admin/part-requests`).then(handleResponse),
+    getAll: async () => {
+      try {
+        // Ensure we're using the admin endpoint for admin panel requests
+        console.log('Fetching all part requests...');
+        const response = await makeRequest(`${API_BASE_URL}/admin/part-requests`);
+        const data = await handleResponse(response);
+        return Array.isArray(data) ? data : [];
+      } catch (error) {
+        console.error('Failed to fetch part requests:', error);
+        throw new Error('Failed to fetch part requests');
+      }
+    },
     getById: (id) => makeRequest(`${API_BASE_URL}/admin/part-requests/${id}`).then(handleResponse),
     update: (id, data) => makeRequest(`${API_BASE_URL}/admin/part-requests/${id}`, {
       method: 'PUT',
@@ -241,7 +283,18 @@ export const apiClient = {
         throw error;
       }
     },
-    getAll: () => makeRequest(`${API_BASE_URL}/admin/repair-requests`).then(handleResponse),
+    getAll: async () => {
+      try {
+        // Ensure we're using the admin endpoint for admin panel requests
+        console.log('Fetching all repair requests...');
+        const response = await makeRequest(`${API_BASE_URL}/admin/repair-requests`);
+        const data = await handleResponse(response);
+        return Array.isArray(data) ? data : [];
+      } catch (error) {
+        console.error('Failed to fetch repair requests:', error);
+        throw new Error('Failed to fetch repair requests');
+      }
+    },
     getById: (id) => makeRequest(`${API_BASE_URL}/admin/repair-requests/${id}`).then(handleResponse),
     update: (id, data) => makeRequest(`${API_BASE_URL}/admin/repair-requests/${id}`, {
       method: 'PUT',
@@ -277,12 +330,15 @@ export const apiClient = {
     image: (formData) => {
       // Don't use JSON for FormData
       const csrfToken = getCsrfToken();
+      const authToken = localStorage.getItem('authToken');
       console.log('Using CSRF token for upload:', csrfToken ? 'token present' : 'token missing');
+      console.log('Auth token found for upload:', !!authToken);
       
       return fetch(`${API_BASE_URL}/admin/upload`, {
         method: 'POST',
         headers: {
-          'X-CSRF-Token': csrfToken || ''
+          'X-CSRF-Token': csrfToken || '',
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
         },
         body: formData,
         credentials: 'include'

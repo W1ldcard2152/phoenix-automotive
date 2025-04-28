@@ -24,9 +24,10 @@ const DismantledVehicleManager = () => {
 
   const fetchVehicles = async () => {
     try {
-      const response = await apiClient.dismantledVehicles.getAll();
-      if (!response.ok) throw new Error('Failed to fetch vehicles');
-      const data = await response.json();
+      setLoading(true);
+      console.log('Attempting to fetch dismantled vehicles from admin...');
+      const data = await apiClient.dismantledVehicles.getAll();
+      console.log('Dismantled vehicles received:', data.length);
       setVehicles(data);
     } catch (err) {
       setError(err.message);
@@ -45,8 +46,9 @@ const DismantledVehicleManager = () => {
     if (!window.confirm('Are you sure you want to delete this vehicle?')) return;
     
     try {
-      const response = await apiClient.dismantledVehicles.delete(id); // Add delete method to apiClient if not exists
-      if (!response.ok) throw new Error('Failed to delete vehicle');
+      console.log('Attempting to delete vehicle:', id);
+      await apiClient.dismantledVehicles.delete(id);
+      console.log('Vehicle deleted successfully');
       await fetchVehicles();
     } catch (err) {
       setError(err.message);
@@ -56,16 +58,14 @@ const DismantledVehicleManager = () => {
 
   const handleSubmit = async (formData) => {
     try {
-      let response;
+      console.log('Submitting vehicle data:', formData);
+      
       if (editingVehicle) {
-        response = await apiClient.dismantledVehicles.update(editingVehicle._id, formData); // Add update method to apiClient if not exists
+        await apiClient.dismantledVehicles.update(editingVehicle._id, formData);
+        console.log('Vehicle updated successfully');
       } else {
-        response = await apiClient.dismantledVehicles.create(formData);
-      }
-  
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save vehicle');
+        await apiClient.dismantledVehicles.create(formData);
+        console.log('Vehicle created successfully');
       }
       
       await fetchVehicles();

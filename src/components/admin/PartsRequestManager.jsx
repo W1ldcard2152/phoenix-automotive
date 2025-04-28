@@ -31,9 +31,7 @@ const PartsRequestManager = () => {
   const fetchRequests = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.partRequests.getAll();
-      if (!response.ok) throw new Error('Failed to fetch requests');
-      const data = await response.json();
+      const data = await apiClient.partRequests.getAll();
       setRequests(data);
       setError(null);
     } catch (err) {

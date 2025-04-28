@@ -134,12 +134,17 @@ router.post('/refresh', async (req, res) => {
     const refreshToken = req.cookies?.refreshToken;
     
     if (!refreshToken) {
+      console.warn('Refresh token missing in request', { 
+        hasCookies: !!req.cookies, 
+        cookies: Object.keys(req.cookies || {}) 
+      });
       return res.status(401).json({ error: 'No refresh token provided' });
     }
     
     // Verify refresh token
     jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'phoenix_automotive_refresh_secret', async (err, decoded) => {
       if (err) {
+        console.warn('Refresh token verification failed', { error: err.message });
         return res.status(403).json({ error: 'Invalid refresh token' });
       }
       
@@ -148,14 +153,20 @@ router.post('/refresh', async (req, res) => {
         const user = await User.findById(decoded.id);
         
         if (!user || !user.active) {
+          console.warn('User not found or inactive during token refresh', { userId: decoded.id });
           return res.status(403).json({ error: 'User not found or inactive' });
         }
         
         // Check token version (allows invalidating all refresh tokens)
         if (user.tokenVersion !== decoded.tokenVersion) {
+          console.warn('Token version mismatch', { 
+            userTokenVersion: user.tokenVersion, 
+            tokenVersion: decoded.tokenVersion 
+          });
           return res.status(403).json({ error: 'Token has been revoked' });
         }
         
+        console.log('Generating new tokens for user', { userId: user._id, username: user.username });
         // Generate new tokens
         const { accessToken, refreshToken: newRefreshToken } = generateTokens(user);
         
@@ -167,7 +178,7 @@ router.post('/refresh', async (req, res) => {
           maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
         });
         
-        // Return new access token
+        // Return new access token with user data
         res.json({ 
           accessToken,
           user: {

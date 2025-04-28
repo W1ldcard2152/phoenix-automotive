@@ -42,7 +42,10 @@ export const AuthProvider = ({ children }) => {
         credentials: 'include' // Include cookies
       });
 
+      // Check if response was actually successful before handling the data
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Token refresh failed:', errorText);
         throw new Error('Failed to refresh token');
       }
 
@@ -52,10 +55,16 @@ export const AuthProvider = ({ children }) => {
       setToken(data.accessToken);
       localStorage.setItem('authToken', data.accessToken);
       
-      // Update token expiry
+      // Update token expiry and user data
       try {
         const decoded = jwtDecode(data.accessToken);
         setTokenExpiry(decoded.exp * 1000); // Convert to milliseconds
+        
+        // Update user data if available in response
+        if (data.user) {
+          setUser(data.user);
+          localStorage.setItem('user', JSON.stringify(data.user));
+        }
       } catch (error) {
         console.error('Failed to decode token expiry:', error);
       }
@@ -63,7 +72,8 @@ export const AuthProvider = ({ children }) => {
       return data.accessToken;
     } catch (error) {
       console.error('Token refresh error:', error);
-      logout();
+      // Don't logout automatically on refresh failure
+      // This allows retry mechanisms to work
       return null;
     } finally {
       setRefreshing(false);
@@ -226,6 +236,7 @@ export const AuthProvider = ({ children }) => {
     
     // Check if token is expired locally first
     if (isTokenExpired(token)) {
+      console.log('Token expired locally, attempting refresh');
       // Try to refresh the token
       const newToken = await refreshToken();
       return !!newToken;
@@ -240,18 +251,61 @@ export const AuthProvider = ({ children }) => {
         credentials: 'include' // Include cookies
       });
       
-      const data = await response.json();
+      // Handle non-JSON responses gracefully
+      let data;
+      try {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          data = await response.json();
+        } else {
+          console.warn('Non-JSON response from verify endpoint, attempting refresh');
+          const newToken = await refreshToken();
+          return !!newToken;
+        }
+      } catch (parseError) {
+        console.error('Error parsing verify response:', parseError);
+        const newToken = await refreshToken();
+        return !!newToken;
+      }
       
       if (!response.ok || !data.valid) {
+        console.log('Token failed verification, attempting refresh');
         // Try to refresh the token if verification fails
         const newToken = await refreshToken();
         return !!newToken;
       }
       
+      // Update user data if it was returned
+      if (data.user) {
+        setUser(data.user);
+        localStorage.setItem('user', JSON.stringify(data.user));
+      }
+      
       return true;
     } catch (error) {
       console.error('Token verification error:', error);
-      await logout();
+      // Try refresh on network errors instead of failing immediately
+      try {
+        console.log('Attempting token refresh after verification error');
+        const newToken = await refreshToken();
+        if (newToken) {
+          console.log('Successfully refreshed token after verification error');
+          return true;
+        }
+      } catch (refreshError) {
+        console.error('Refresh after verification error failed:', refreshError);
+      }
+      
+      // Only logout on critical errors, not network issues
+      if (error.message && (error.message.includes('Invalid token') || 
+          error.message.includes('Token has been revoked'))) {
+        console.log('Critical token error, logging out');
+        await logout();
+        return false;
+      }
+      
+      // For other errors (like network issues), don't log out
+      // Just return false to indicate verification failed
       return false;
     }
   };

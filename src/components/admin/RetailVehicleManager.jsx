@@ -26,11 +26,9 @@ const RetailVehicleManager = () => {
   const fetchVehicles = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.retailVehicles.getAll();
-      if (!response.ok) {
-        throw new Error('Failed to fetch retail vehicles');
-      }
-      const data = await response.json();
+      console.log('Fetching retail vehicles from admin panel...');
+      const data = await apiClient.retailVehicles.getAll();
+      console.log('Retail vehicles received:', data.length);
       setVehicles(data);
       setError(null);
     } catch (err) {
@@ -45,10 +43,9 @@ const RetailVehicleManager = () => {
     if (!window.confirm('Are you sure you want to delete this retail vehicle?')) return;
     
     try {
-      const response = await apiClient.retailVehicles.delete(id);
-      if (!response.ok) {
-        throw new Error('Failed to delete retail vehicle');
-      }
+      console.log('Attempting to delete retail vehicle:', id);
+      await apiClient.retailVehicles.delete(id);
+      console.log('Retail vehicle deleted successfully');
       await fetchVehicles();
     } catch (err) {
       setError(err.message);
@@ -58,8 +55,7 @@ const RetailVehicleManager = () => {
 
   const handleSubmit = async (formData) => {
     try {
-      console.log('Submitting vehicle data:', formData);
-      let response;
+      console.log('Submitting retail vehicle data:', formData);
       
       // Remove any undefined or empty optional fields
       const cleanedFormData = Object.fromEntries(
@@ -69,30 +65,13 @@ const RetailVehicleManager = () => {
       );
       
       if (editingVehicle) {
-        response = await apiClient.retailVehicles.update(editingVehicle._id, cleanedFormData);
+        console.log('Updating retail vehicle:', editingVehicle._id);
+        await apiClient.retailVehicles.update(editingVehicle._id, cleanedFormData);
+        console.log('Retail vehicle updated successfully');
       } else {
-        response = await apiClient.retailVehicles.create(cleanedFormData);
-      }
-
-      // Handle response
-      if (!response.ok) {
-        let errorMessage = 'Failed to save retail vehicle';
-        
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorData.error || errorMessage;
-        } catch {
-          // If JSON parsing fails, try to get text content
-          try {
-            const errorText = await response.text();
-            errorMessage = errorText || errorMessage;
-          } catch {
-            // If both JSON and text parsing fail, use status text
-            errorMessage = response.statusText || errorMessage;
-          }
-        }
-        
-        throw new Error(errorMessage);
+        console.log('Creating new retail vehicle');
+        await apiClient.retailVehicles.create(cleanedFormData);
+        console.log('Retail vehicle created successfully');
       }
 
       // On success, refresh the list and reset form state
