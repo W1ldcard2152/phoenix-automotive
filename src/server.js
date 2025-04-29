@@ -151,10 +151,26 @@ app.use('/api', router);
 
 // Static file serving with enhanced caching
 if (process.env.NODE_ENV === 'production') {
+  // Add proper MIME type handling for JavaScript and CSS files
   app.use(express.static(path.join(__dirname, '../dist'), {
     maxAge: '1y',
     etag: true,
-    lastModified: true
+    lastModified: true,
+    setHeaders: (res, path) => {
+      // Set correct Content-Type header for different file types
+      if (path.endsWith('.js')) {
+        res.set('Content-Type', 'application/javascript');
+      } else if (path.endsWith('.css')) {
+        res.set('Content-Type', 'text/css');
+      }
+      
+      // Set caching headers
+      if (path.includes('/assets/')) {
+        res.set('Cache-Control', 'public, max-age=31536000, immutable');
+      } else {
+        res.set('Cache-Control', 'public, max-age=86400');
+      }
+    }
   }));
 
   app.get('*', (req, res) => {

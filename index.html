@@ -4,10 +4,16 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React</title>
+    <!-- Add explicit crossorigin attribute for better error handling -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>Phoenix Automotive</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <!-- Add fallback script for older browsers -->
+    <script nomodule>
+      document.body.innerHTML = '<p>This application requires a modern browser. Please upgrade to the latest version of Chrome, Firefox, Safari, or Edge.</p>';
+    </script>
   </body>
 </html>
