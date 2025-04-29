@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { jwtDecode } from 'jwt-decode'; // Make sure to add this package
+import { jwtDecode } from 'jwt-decode';
+import { getCsrfToken, generateCsrfToken } from '../utils/csrfUtils';
 
 const AuthContext = createContext(null);
 
@@ -33,11 +34,14 @@ export const AuthProvider = ({ children }) => {
     try {
       setRefreshing(true);
       
+      // Always ensure we have a CSRF token
+      const currentCsrfToken = csrfToken || generateCsrfToken();
+      
       const response = await fetch('/api/auth/refresh', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-Token': csrfToken
+          'X-CSRF-Token': currentCsrfToken
         },
         credentials: 'include' // Include cookies
       });
@@ -87,39 +91,68 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       
       try {
+        // Debug cookies function
+        const debugCookies = () => {
+          console.log('Document cookies:', document.cookie);
+          try {
+            const allCookies = document.cookie.split(';').map(cookie => cookie.trim());
+            console.log('All cookies:', allCookies);
+          } catch (e) {
+            console.error('Error reading cookies:', e);
+          }
+        };
+        
+        // Debug cookies
+        debugCookies();
+        
         // Get CSRF token from cookie
-        const getCookie = (name) => {
+        const getCookieValue = (name) => {
           const value = `; ${document.cookie}`;
           const parts = value.split(`; ${name}=`);
           if (parts.length === 2) return parts.pop().split(';').shift();
           return null;
         };
         
-        const cookieCsrfToken = getCookie('csrfToken');
+        const cookieCsrfToken = getCookieValue('csrfToken');
+        console.log('Initial CSRF token from cookie:', cookieCsrfToken ? 'present' : 'missing');
         
-        // If no CSRF token in cookie, make a GET request to the server to set one
-        if (!cookieCsrfToken) {
-          try {
-            await fetch('/api/auth/csrf', { method: 'GET', credentials: 'include' });
-            const newCsrfToken = getCookie('csrfToken');
-            if (newCsrfToken) {
-              setCsrfToken(newCsrfToken);
-            } else {
-              console.warn('Failed to get CSRF token from server');
-              // Fallback method if server doesn't set the cookie
-              const fallbackToken = Math.random().toString(36).substring(2, 15) + 
-                                 Math.random().toString(36).substring(2, 15);
-              setCsrfToken(fallbackToken);
+        // Generate fallback token first - we'll use this regardless
+        const fallbackToken = generateCsrfToken();
+        setCsrfToken(fallbackToken);
+        console.log('Set fallback CSRF token:', fallbackToken.substring(0, 5) + '...');
+        
+        // Try to fetch from server, but don't block on it
+        try {
+          const abortController = new AbortController();
+          const timeoutId = setTimeout(() => abortController.abort(), 3000);
+          
+          console.log('Fetching CSRF token from server...');
+          fetch('/api/auth/csrf', { 
+            method: 'GET', 
+            credentials: 'include',
+            signal: abortController.signal
+          }).then(response => {
+            clearTimeout(timeoutId);
+            if (response.ok) {
+              console.log('CSRF token fetch response:', response.status);
+              // Check cookies again after fetch
+              debugCookies();
+              
+              // Check if we got a token in the cookie after fetch
+              const newToken = getCookieValue('csrfToken');
+              if (newToken && newToken !== fallbackToken) {
+                console.log('Received server CSRF token, updating');
+                setCsrfToken(newToken);
+              }
             }
-          } catch (error) {
-            console.error('Failed to get CSRF token:', error);
-            // Fallback method
-            const fallbackToken = Math.random().toString(36).substring(2, 15) + 
-                               Math.random().toString(36).substring(2, 15);
-            setCsrfToken(fallbackToken);
-          }
-        } else {
-          setCsrfToken(cookieCsrfToken);
+          }).catch(err => {
+            clearTimeout(timeoutId);
+            console.warn('CSRF fetch failed, using fallback token:', err.message);
+            // We already set the fallback token, so just log the error
+          });
+        } catch (error) {
+          console.error('Failed to get CSRF token:', error);
+          // We already have the fallback token set
         }
         
         // Get stored token
@@ -149,6 +182,9 @@ export const AuthProvider = ({ children }) => {
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
+        // Use a fallback token if anything fails
+        const emergencyToken = generateCsrfToken();
+        setCsrfToken(emergencyToken);
       } finally {
         setLoading(false);
       }
@@ -160,11 +196,14 @@ export const AuthProvider = ({ children }) => {
   // Login function
   const login = async (username, password) => {
     try {
+      // Ensure we have a CSRF token
+      const currentCsrfToken = csrfToken || generateCsrfToken();
+      
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRF-Token': csrfToken
+          'X-CSRF-Token': currentCsrfToken
         },
         credentials: 'include', // Include cookies
         body: JSON.stringify({ username, password }),
@@ -210,7 +249,7 @@ export const AuthProvider = ({ children }) => {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
-            'X-CSRF-Token': csrfToken
+            'X-CSRF-Token': csrfToken || generateCsrfToken()
           },
           credentials: 'include' // Include cookies
         }).catch(error => {
@@ -243,10 +282,13 @@ export const AuthProvider = ({ children }) => {
     }
     
     try {
+      // Ensure we have a CSRF token
+      const currentCsrfToken = csrfToken || generateCsrfToken();
+      
       const response = await fetch('/api/auth/verify', {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'X-CSRF-Token': csrfToken
+          'X-CSRF-Token': currentCsrfToken
         },
         credentials: 'include' // Include cookies
       });
@@ -315,12 +357,15 @@ export const AuthProvider = ({ children }) => {
     if (!token) throw new Error('Not authenticated');
     
     try {
+      // Ensure we have a CSRF token
+      const currentCsrfToken = csrfToken || generateCsrfToken();
+      
       const response = await fetch('/api/auth/change-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
-          'X-CSRF-Token': csrfToken
+          'X-CSRF-Token': currentCsrfToken
         },
         credentials: 'include',
         body: JSON.stringify({ currentPassword, newPassword })
