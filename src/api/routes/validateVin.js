@@ -93,4 +93,40 @@ router.post('/decode', async (req, res) => {
   }
 });
 
+// Proxy route to NHTSA API
+router.get('/nhtsa/:vin', async (req, res) => {
+  try {
+    const { vin } = req.params;
+    
+    if (!vin || vin.length !== 17) {
+      return res.status(400).json({
+        error: 'Valid 17-character VIN is required'
+      });
+    }
+    
+    console.log(`Proxying VIN decode request to NHTSA for VIN: ${vin}`);
+    const response = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/decodevin/${vin}?format=json`, {
+      headers: {
+        'Accept': 'application/json'
+      },
+      timeout: 10000 // 10 second timeout
+    });
+    
+    if (!response.ok) {
+      console.error(`NHTSA API responded with status: ${response.status}`);
+      throw new Error(`NHTSA API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log('Successfully proxied NHTSA API response');
+    res.json(data);
+  } catch (error) {
+    console.error('VIN Decode Proxy Error:', error);
+    res.status(500).json({
+      error: 'Failed to decode VIN',
+      details: error.message
+    });
+  }
+});
+
 export default router;
