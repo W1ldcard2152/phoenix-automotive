@@ -29,7 +29,18 @@ export default defineConfig({
     // Ensure compatibility with older browsers
     target: 'es2015',
     // Add source maps for better debugging
-    sourcemap: true
+    sourcemap: true,
+    // Improve asset handling
+    assetsInlineLimit: 4096, // Only inline assets smaller than 4kb
+    emptyOutDir: true,     // Clean the output directory before build
+    manifest: true,        // Generate a manifest.json for asset references
+    minify: 'terser',      // Use terser for better minification
+    terserOptions: {
+      compress: {
+        drop_console: false, // Keep console logs for debugging in production
+        drop_debugger: true
+      }
+    }
   },
   resolve: {
     alias: {

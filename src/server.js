@@ -7,6 +7,7 @@ import { secureCookies, cookieParser } from './api/middleware/cookies.js';
 import { csrfProtection, setCsrfToken } from './api/middleware/csrf.js';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -23,8 +24,13 @@ const corsOptions = {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
 
+      // Allow same origin requests
+      if (origin.includes('phoenix-automotive') || origin.includes('render.com')) {
+        return callback(null, true);
+      }
+
       const allowedOrigins = process.env.NODE_ENV === 'production'
-        ? [process.env.CLIENT_URL || 'https://phoenix-automotive.onrender.com']
+        ? [process.env.CLIENT_URL, 'https://phoenix-automotive.onrender.com', 'https://phoenix-automotive-dbue.onrender.com']
         : ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'];
 
       if (allowedOrigins.includes(origin) || !origin) {
@@ -54,7 +60,14 @@ const corsOptions = {
   maxAge: 86400 // CORS preflight cache for 24 hours
 };
 
+// Apply CORS middleware
 app.use(cors(corsOptions));
+
+// Add diagnostic middleware to log all requests
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} | ${req.method} ${req.url} | Origin: ${req.headers.origin || 'none'} | Referer: ${req.headers.referer || 'none'}`);
+  next();
+});
 
 // Apply security middleware
 app.use(securityHeaders);
@@ -64,11 +77,28 @@ app.use(setCsrfToken);
 app.use(rateLimit);
 
 // CORS related headers
+// Enhanced CORS headers middleware
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if (origin) {
-    res.header('Access-Control-Allow-Origin', origin);
+  
+  // In production, be more permissive with CORS headers
+  if (process.env.NODE_ENV === 'production') {
+    // For production, we'll accept requests from our own domain or any phoenix-automotive domain
+    if (origin) {
+      console.log('Setting production CORS header for origin:', origin);
+      res.header('Access-Control-Allow-Origin', origin);
+    } else {
+      // If no origin, we'll be permissive (this helps with static assets)
+      res.header('Access-Control-Allow-Origin', '*');
+    }
+  } else {
+    // In development, follow standard CORS rules
+    if (origin) {
+      console.log('Setting development CORS header for origin:', origin);
+      res.header('Access-Control-Allow-Origin', origin);
+    }
   }
+  
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Allow-Headers',
@@ -149,8 +179,13 @@ app.use((req, res, next) => {
 // API routes
 app.use('/api', router);
 
+// Log the environment
+console.log('Current NODE_ENV:', process.env.NODE_ENV);
+
 // Static file serving with enhanced caching
 if (process.env.NODE_ENV === 'production') {
+  // Log the static file path
+  console.log('Serving static files from:', path.join(__dirname, '../dist'));
   // Add proper MIME type handling for JavaScript and CSS files
   app.use(express.static(path.join(__dirname, '../dist'), {
     maxAge: '1y',
@@ -173,7 +208,72 @@ if (process.env.NODE_ENV === 'production') {
     }
   }));
 
+  // Additional configuration to ensure assets are served correctly
+  app.use((req, res, next) => {
+    // Make sure appropriate content types are set even if not caught by express.static
+    const ext = path.extname(req.path).toLowerCase();
+    if (ext === '.js') {
+      res.set('Content-Type', 'application/javascript');
+    } else if (ext === '.css') {
+      res.set('Content-Type', 'text/css');
+    }
+    next();
+  });
+
+  // Add a specific handler for asset files (prevent 404 errors)
+  app.get('/assets/*', (req, res, next) => {
+    // Try to send the file from the dist directory
+    const filePath = path.join(__dirname, '../dist', req.path);
+    console.log('Looking for asset file at:', filePath);
+    
+    // Check if file exists
+    try {
+      if (fs.existsSync(filePath)) {
+        // Determine content type based on file extension
+        const ext = path.extname(filePath);
+        let contentType = 'application/octet-stream';
+        
+        switch (ext) {
+          case '.js':
+            contentType = 'application/javascript';
+            break;
+          case '.css':
+            contentType = 'text/css';
+            break;
+          case '.json':
+            contentType = 'application/json';
+            break;
+          case '.png':
+            contentType = 'image/png';
+            break;
+          case '.jpg':
+          case '.jpeg':
+            contentType = 'image/jpeg';
+            break;
+          case '.svg':
+            contentType = 'image/svg+xml';
+            break;
+        }
+        
+        res.set('Content-Type', contentType);
+        return res.sendFile(filePath, {
+          maxAge: '1y',
+          headers: {
+            'Cache-Control': 'public, max-age=31536000, immutable'
+          }
+        });
+      }
+    } catch (err) {
+      console.error('Error checking for asset file:', err);
+    }
+    
+    // If we get here, the file wasn't found or had an error
+    next();
+  });
+
+  // Send index.html for all other routes
   app.get('*', (req, res) => {
+    console.log('Serving index.html for path:', req.path);
     res.sendFile(path.join(__dirname, '../dist/index.html'), {
       maxAge: '1d',
       headers: {
