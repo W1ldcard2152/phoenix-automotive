@@ -3,12 +3,22 @@ const NHTSA_BASE_URL = '/api/vin/nhtsa'; // Use proxy endpoint instead of direct
 
 export const decodeVinNHTSA = async (vin) => {
   try {
+    // Validate VIN format before making request
+    if (!validateVinFormat(vin)) {
+      throw new Error('Invalid VIN format');
+    }
+    
     // Add timeout and controller for better error handling
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
     
     console.log(`Attempting to decode VIN ${vin} using proxy endpoint`);
-    const response = await fetch(`${NHTSA_BASE_URL}/${vin}`, {
+    
+    // Fix: Use the correct URL format to ensure the proxy works correctly
+    const url = `${NHTSA_BASE_URL}/${vin}`;
+    console.log(`Request URL: ${url}`);
+    
+    const response = await fetch(url, {
       signal: controller.signal,
       headers: {
         'Accept': 'application/json'
@@ -18,8 +28,17 @@ export const decodeVinNHTSA = async (vin) => {
     clearTimeout(timeoutId);
    
     if (!response.ok) {
-      console.error(`VIN decode API responded with status: ${response.status}`);
-      throw new Error(`Failed to decode VIN: HTTP error ${response.status}`);
+      let errorDetails = '';
+      try {
+        // Try to get more error details from response
+        const errorResponse = await response.json();
+        errorDetails = `: ${errorResponse.message || errorResponse.error || ''}`;
+      } catch (e) {
+        // Ignore error parsing error
+      }
+      
+      console.error(`VIN decode API responded with status: ${response.status}${errorDetails}`);
+      throw new Error(`Failed to decode VIN: HTTP error ${response.status}${errorDetails}`);
     }
     
     const data = await response.json();

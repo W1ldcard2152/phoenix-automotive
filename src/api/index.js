@@ -84,6 +84,7 @@ console.log('Mounting routes...');
 // Public routes
 router.use('/auth', csrfProtection, authRouter);
 router.use('/vin', vinValidationRouter);
+app.use('/api/vin', vinValidationRouter);
 
 // Modified route handling for dismantled vehicles - public GET access
 router.get('/dismantled-vehicles', async (req, res, next) => {
