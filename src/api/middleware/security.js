@@ -11,10 +11,10 @@
 
 // Basic security headers middleware
 export const securityHeaders = (req, res, next) => {
-  // Content Security Policy
+  // Content Security Policy - updated to allow Google Maps
   res.setHeader(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; connect-src 'self' https://vpic.nhtsa.dot.gov; font-src 'self'; object-src 'none'; media-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'self';"
+    "default-src 'self'; script-src 'self' 'unsafe-inline' https://maps.googleapis.com https://maps.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https: blob:; connect-src 'self' https://vpic.nhtsa.dot.gov https://maps.googleapis.com https://maps.google.com; font-src 'self' https://fonts.gstatic.com; object-src 'none'; media-src 'self'; frame-ancestors 'self'; frame-src https://www.google.com https://maps.google.com; form-action 'self'; base-uri 'self';"
   );
   
   // HTTP Strict Transport Security (HSTS)
@@ -26,19 +26,19 @@ export const securityHeaders = (req, res, next) => {
   // X-Content-Type-Options
   res.setHeader('X-Content-Type-Options', 'nosniff');
   
-  // X-Frame-Options (prevents clickjacking)
-  res.setHeader('X-Frame-Options', 'DENY');
+  // X-Frame-Options - Updated to allow same origin frames
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   
   // X-XSS-Protection
   res.setHeader('X-XSS-Protection', '1; mode=block');
   
-  // Referrer-Policy
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  // Referrer-Policy - Updated to be less restrictive
+  res.setHeader('Referrer-Policy', 'origin-when-cross-origin');
   
-  // Permissions-Policy (formerly Feature-Policy)
+  // Permissions-Policy - Updated to allow some features
   res.setHeader(
     'Permissions-Policy',
-    'camera=(), microphone=(), geolocation=(), interest-cohort=()'
+    'camera=(), microphone=(), geolocation=(self), interest-cohort=()'
   );
   
   // Cache-Control for API responses

@@ -86,12 +86,13 @@ const Contact = () => {
       <h2 className="text-xl font-bold mb-6">Location</h2>
       <div className="rounded-lg overflow-hidden shadow-sm">
         <iframe
-          className="w-full h-64 md:h-80"
-          src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2917.308520062282!2d-77.09340548451435!3d43.04735997914689!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x89d14c8c8c8c8c8d%3A0x8c8c8c8c8c8c8c8c!2sPhoenix%20Automotive!5e0!3m2!1sen!2sus!4v1621436426788!5m2!1sen!2sus"
-          allowFullScreen=""
-          loading="lazy"
-          title="Phoenix Automotive Location"
-        ></iframe>
+            className="w-full h-64 md:h-80"
+            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2917.308520062282!2d-77.09340548451435!3d43.04735997914689!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x89d14c8c8c8c8c8d%3A0x8c8c8c8c8c8c8c8c!2s201%20Ford%20St%2C%20Newark%2C%20NY%2014513!5e0!3m2!1sen!2sus!4v1621436426788!5m2!1sen!2sus"
+            allowFullScreen=""
+            loading="lazy"
+            title="Phoenix Automotive Location"
+            referrerPolicy="no-referrer-when-downgrade"
+      ></iframe>
       </div>
     </Card>
   );

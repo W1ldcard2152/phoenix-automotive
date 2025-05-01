@@ -17,12 +17,19 @@ dotenv.config();
 
 const app = express();
 
-// CORS Configuration with enhanced error handling
+// Enhanced CORS Configuration with support for Google Maps domains
 const corsOptions = {
   origin: function (origin, callback) {
     try {
       // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
+
+      // Allow Google domains for Maps and related services
+      if (origin.includes('google.com') || 
+          origin.includes('googleapis.com') ||
+          origin.includes('gstatic.com')) {
+        return callback(null, true);
+      }
 
       // Allow same origin requests
       if (origin.includes('phoenix-automotive') || origin.includes('render.com')) {
@@ -33,7 +40,7 @@ const corsOptions = {
         ? [process.env.CLIENT_URL, 'https://phoenix-automotive.onrender.com', 'https://phoenix-automotive-dbue.onrender.com']
         : ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'];
 
-      if (allowedOrigins.includes(origin) || !origin) {
+      if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
         console.warn('CORS blocked request from:', origin);
@@ -57,11 +64,15 @@ const corsOptions = {
     'Pragma',
     'X-CSRF-Token'
   ],
+  exposedHeaders: ['Content-Length', 'Content-Type', 'X-Powered-By'],
   maxAge: 86400 // CORS preflight cache for 24 hours
 };
 
 // Apply CORS middleware
 app.use(cors(corsOptions));
+
+// Enable pre-flight requests for all routes
+app.options('*', cors(corsOptions));
 
 // Simplified middleware chain
 app.use((req, res, next) => {
@@ -72,7 +83,7 @@ app.use((req, res, next) => {
 // Apply only the essential middleware
 app.use(cookieParser);
 
-// CORS related headers - simplified
+// CORS related headers - enhanced for Google Maps
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   
@@ -150,10 +161,11 @@ app.use('/api', router);
 // Log the environment
 console.log('Current NODE_ENV:', process.env.NODE_ENV);
 
-// Static file serving with enhanced caching
+// Static file serving with enhanced caching and mime types
 if (process.env.NODE_ENV === 'production') {
   // Log the static file path
   console.log('Serving static files from:', path.join(__dirname, '../dist'));
+  
   // Add proper MIME type handling for JavaScript and CSS files
   app.use(express.static(path.join(__dirname, '../dist'), {
     maxAge: '1y',
