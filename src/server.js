@@ -251,8 +251,15 @@ if (process.env.NODE_ENV === 'production') {
     next();
   });
 
-  // Send index.html for all other routes
-  app.get('*', (req, res) => {
+  // Handle client-side routing for SPA
+  app.get(/^(?!\/(api|assets)).*$/, (req, res, next) => {
+    // Skip if path starts with /api or /assets
+    // Skip if it's a static file request
+    if (req.path.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|json|map)$/)) {
+      return next();
+    }
+    
+    // Serve index.html for all other routes (SPA routing)
     console.log('Serving index.html for path:', req.path);
     res.sendFile(path.join(__dirname, '../dist/index.html'), {
       maxAge: '1d',
@@ -260,6 +267,20 @@ if (process.env.NODE_ENV === 'production') {
         'Cache-Control': 'public, max-age=86400'
       }
     });
+  });
+  
+  // Fallback handler to ensure all routes return index.html
+  app.use((req, res, next) => {
+    // If we've reached this point, serve index.html as a last resort
+    if (!res.headersSent && !req.path.startsWith('/api')) {
+      console.log('Fallback handler serving index.html for:', req.path);
+      res.sendFile(path.join(__dirname, '../dist/index.html'), {
+        maxAge: '1d',
+        headers: {
+          'Cache-Control': 'public, max-age=86400'
+        }
+      });
+    }
   });
 } else {
   app.get('/', (req, res) => {
