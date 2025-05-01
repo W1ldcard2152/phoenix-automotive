@@ -251,33 +251,52 @@ if (process.env.NODE_ENV === 'production') {
     next();
   });
 
-  // Handle client-side routing for SPA
-  app.get(/^(?!\/(api|assets)).*$/, (req, res, next) => {
-    // Skip if path starts with /api or /assets
-    // Skip if it's a static file request
-    if (req.path.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|json|map)$/)) {
+  // Handle all client-side routes - serve index.html
+  // This is CRITICAL for React Router to work correctly
+  app.get('*', (req, res, next) => {
+    // Skip API routes
+    if (req.path.startsWith('/api')) {
       return next();
     }
-    
-    // Serve index.html for all other routes (SPA routing)
+
+    // Skip asset files
+    if (req.path.startsWith('/assets')) {
+      return next();
+    }
+
+    // Skip static asset files
+    if (req.path.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|json|map|txt|xml|pdf|woff|woff2|ttf|eot)$/)) {
+      return next();
+    }
+
+    // For all other routes, serve index.html
     console.log('Serving index.html for path:', req.path);
-    res.sendFile(path.join(__dirname, '../dist/index.html'), {
-      maxAge: '1d',
-      headers: {
-        'Cache-Control': 'public, max-age=86400'
+    
+    const indexPath = path.join(__dirname, '../dist/index.html');
+    res.sendFile(indexPath, (err) => {
+      if (err) {
+        console.error('Error serving index.html:', err);
+        res.status(500).send('Error loading application');
       }
     });
   });
   
   // Fallback handler to ensure all routes return index.html
   app.use((req, res, next) => {
-    // If we've reached this point, serve index.html as a last resort
-    if (!res.headersSent && !req.path.startsWith('/api')) {
+    // If we've reached this point, and it's not an API or asset request
+    if (!res.headersSent && !req.path.startsWith('/api') && !req.path.startsWith('/assets')) {
       console.log('Fallback handler serving index.html for:', req.path);
-      res.sendFile(path.join(__dirname, '../dist/index.html'), {
+      const indexPath = path.join(__dirname, '../dist/index.html');
+      res.sendFile(indexPath, {
         maxAge: '1d',
         headers: {
           'Cache-Control': 'public, max-age=86400'
+        }
+      }, (err) => {
+        if (err) {
+          console.error('Error in fallback handler:', err);
+          // Don't return a 404, this might be a valid client route
+          res.status(200).send('<!DOCTYPE html><html><head><title>Phoenix Automotive</title></head><body><div>Loading...</div></body></html>');
         }
       });
     }

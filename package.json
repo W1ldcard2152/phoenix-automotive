@@ -6,12 +6,15 @@
   "scripts": {
     "dev:server": "nodemon src/server.js --watch src/api",
     "dev:client": "vite",
-    "build": "vite build --emptyOutDir",
+    "build": "vite build --emptyOutDir --outDir dist",
     "start": "node src/server.js",
+    "postbuild": "node -e \"require('fs').copyFileSync('public/_redirects', 'dist/_redirects')\"",
     "start:dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "lint": "eslint .",
     "preview": "vite preview",
-    "create-admin": "node scripts/createAdminUser.js"
+    "create-admin": "node scripts/createAdminUser.js",
+    "cleanup": "node scripts/cleanup.js",
+    "prebuild": "npm run cleanup"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.4",
