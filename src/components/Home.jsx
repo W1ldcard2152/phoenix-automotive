@@ -159,10 +159,11 @@ const Home = () => {
               <div className="relative w-full rounded-lg overflow-hidden shadow-md aspect-video md:aspect-auto md:h-full min-h-[250px] md:min-h-[400px]">
                 <iframe 
                   className="absolute inset-0 w-full h-full"
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2917.308520062282!2d-77.09340548451435!3d43.04735997914689!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x89d14c8c8c8c8c8d%3A0x8c8c8c8c8c8c8c8c!2sPhoenix%20Automotive!5e0!3m2!1sen!2sus!4v1621436426788!5m2!1sen!2sus"
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2917.308520062282!2d-77.09340548451435!3d43.04735997914689!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x89d14c8c8c8c8c8d%3A0x8c8c8c8c8c8c8c8c!2s201%20Ford%20St%2C%20Newark%2C%20NY%2014513!5e0!3m2!1sen!2sus!4v1621436426788!5m2!1sen!2sus"
                   allowFullScreen=""
                   loading="lazy"
                   title="Phoenix Automotive Location"
+                  referrerPolicy="no-referrer-when-downgrade"
                 />
               </div>
             </div>
