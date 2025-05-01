@@ -47,7 +47,6 @@ router.post('/login', async (req, res) => {
       // Compare password - will throw error if account is locked
       const isMatch = await user.comparePassword(password);
       if (!isMatch) {
-        // Invalid password - already handled in comparePassword method
         return res.status(401).json({ error: 'Invalid credentials' });
       }
       
@@ -71,7 +70,7 @@ router.post('/login', async (req, res) => {
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'lax', // Change from strict to lax
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
     

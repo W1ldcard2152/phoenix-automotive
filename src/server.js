@@ -63,74 +63,42 @@ const corsOptions = {
 // Apply CORS middleware
 app.use(cors(corsOptions));
 
-// Add diagnostic middleware to log all requests
+// Simplified middleware chain
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} | ${req.method} ${req.url} | Origin: ${req.headers.origin || 'none'} | Referer: ${req.headers.referer || 'none'}`);
+  console.log(`${new Date().toISOString()} | ${req.method} ${req.url}`);
   next();
 });
 
-// Apply security middleware
-app.use(securityHeaders);
+// Apply only the essential middleware
 app.use(cookieParser);
-app.use(secureCookies);
-app.use(setCsrfToken);
-app.use(rateLimit);
 
-// CORS related headers
-// Enhanced CORS headers middleware
+// CORS related headers - simplified
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   
-  // In production, be more permissive with CORS headers
-  if (process.env.NODE_ENV === 'production') {
-    // For production, we'll accept requests from our own domain or any phoenix-automotive domain
-    if (origin) {
-      console.log('Setting production CORS header for origin:', origin);
-      res.header('Access-Control-Allow-Origin', origin);
-    } else {
-      // If no origin, we'll be permissive (this helps with static assets)
-      res.header('Access-Control-Allow-Origin', '*');
-    }
-  } else {
-    // In development, follow standard CORS rules
-    if (origin) {
-      console.log('Setting development CORS header for origin:', origin);
-      res.header('Access-Control-Allow-Origin', origin);
-    }
+  if (origin) {
+    res.header('Access-Control-Allow-Origin', origin);
   }
   
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-CSRF-Token');
+    'Origin, X-Requested-With, Content-Type, Accept, Authorization');
   
   // Handle OPTIONS requests explicitly
   if (req.method === 'OPTIONS') {
-    // Explicitly set the allowed headers for OPTIONS requests
-    res.header('Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-CSRF-Token');
-    return res.status(200).end(); // Changed from 204 to 200 to fix some browsers' behavior
+    return res.status(200).end();
   }
   
   next();
 });
 
-// Body parsing middleware with enhanced error handling
+// Body parsing middleware
 app.use(express.json({
-  limit: '10mb',
-  verify: (req, res, buf) => {
-    try {
-      JSON.parse(buf);
-    } catch (e) {
-      console.error('Invalid JSON:', e);
-      res.status(400).json({ error: 'Invalid JSON payload' });
-      throw new Error('Invalid JSON');
-    }
-  }
+  limit: '10mb'
 }));
 
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(express.raw({ type: 'image/*', limit: '10mb' }));
 
 // Health check route with basic system info
 app.get('/healthz', (req, res) => {

@@ -7,28 +7,80 @@ const defaultHeaders = {
   'Content-Type': 'application/json'
 };
 
-// Get CSRF token from cookie
-const getCsrfToken = () => {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; csrfToken=`);
-  if (parts.length === 2) return parts.pop().split(';').shift();
-  return null;
-};
-
-// Add CSRF token to headers for non-GET requests
-const addCsrfToken = (method, headers) => {
-  if (method !== 'GET') {
-    const csrfToken = getCsrfToken();
-    if (csrfToken) {
-      return {
-        ...headers,
-        'X-CSRF-Token': csrfToken
-      };
-    }
+// Simplified makeRequest function - CSRF token handling removed
+async function makeRequest(url, options = {}) {
+  const { method = 'GET' } = options;
+  
+  // Get authentication token from localStorage
+  const authToken = localStorage.getItem('authToken');
+  const isAdminRoute = url.includes('/admin/');
+  console.log(`Auth for ${url}: Token ${authToken ? 'found' : 'missing'}, Admin route: ${isAdminRoute}`);
+  
+  // If this is an admin route and no token is found, log a warning
+  if (isAdminRoute && !authToken) {
+    console.warn('⚠️ Attempting to access admin route without auth token:', url);
   }
-  return headers;
-};
+  
+  const finalOptions = {
+    ...options,
+    headers: {
+      ...defaultHeaders,
+      ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
+      ...options.headers
+    },
+    mode: 'cors',
+    credentials: 'include'
+  };
+  
+  // Log the complete request configuration for admin routes
+  if (isAdminRoute) {
+    console.log('Admin request config:', {
+      url,
+      method: finalOptions.method || 'GET',
+      hasAuthHeader: !!finalOptions.headers?.Authorization
+    });  
+  }
 
+  try {
+    console.log(`Making ${options.method || 'GET'} request to:`, url);
+    const response = await fetch(url, finalOptions);
+    
+    if (!response.ok) {
+      const status = response.status;
+      let errorMessage = `HTTP error! status: ${status}`;
+      
+      try {
+        // Try to get a more detailed error message from the response
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorData.message || errorMessage;
+      } catch (e) {
+        // If JSON parsing fails, try to get text content
+        try {
+          const errorText = await response.text();
+          if (errorText) errorMessage = errorText;
+        } catch (textError) {
+          // If both JSON and text parsing fail, use status text
+          errorMessage = response.statusText || errorMessage;
+        }
+      }
+      
+      console.error(`API Error: ${errorMessage}`);
+      throw new Error(errorMessage);
+    }
+    
+    return response;
+  } catch (error) {
+    console.error('Network request failed:', {
+      url,
+      method: options.method || 'GET',
+      error: error.message,
+      stack: error.stack
+    });
+    throw error;
+  }
+}
+
+// Handle response processing
 async function handleResponse(response) {
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
@@ -77,80 +129,6 @@ async function handleResponse(response) {
   } catch (error) {
     console.error('Response handling error:', error);
     throw new Error('Failed to process response');
-  }
-}
-
-// Update the makeRequest function in apiClient.js
-async function makeRequest(url, options = {}) {
-  const { method = 'GET' } = options;
-  
-  // Get authentication token from localStorage
-  const authToken = localStorage.getItem('authToken');
-  const isAdminRoute = url.includes('/admin/');
-  console.log(`Auth for ${url}: Token ${authToken ? 'found' : 'missing'}, Admin route: ${isAdminRoute}`);
-  
-  // If this is an admin route and no token is found, log a warning
-  if (isAdminRoute && !authToken) {
-    console.warn('⚠️ Attempting to access admin route without auth token:', url);
-  }
-  
-  const finalOptions = {
-    ...options,
-    headers: addCsrfToken(method, {
-      ...defaultHeaders,
-      ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
-      ...options.headers
-    }),
-    mode: 'cors',
-    credentials: 'include'
-  };
-  
-  // Log the complete request configuration for admin routes
-  if (isAdminRoute) {
-    console.log('Admin request config:', {
-      url,
-      method: finalOptions.method || 'GET',
-      hasAuthHeader: !!finalOptions.headers?.Authorization,
-      hasCsrfToken: !!finalOptions.headers?.['X-CSRF-Token']
-    });  
-  }
-
-  try {
-    console.log(`Making ${options.method || 'GET'} request to:`, url);
-    const response = await fetch(url, finalOptions);
-    
-    if (!response.ok) {
-      const status = response.status;
-      let errorMessage = `HTTP error! status: ${status}`;
-      
-      try {
-        // Try to get a more detailed error message from the response
-        const errorData = await response.json();
-        errorMessage = errorData.error || errorData.message || errorMessage;
-      } catch (e) {
-        // If JSON parsing fails, try to get text content
-        try {
-          const errorText = await response.text();
-          if (errorText) errorMessage = errorText;
-        } catch (textError) {
-          // If both JSON and text parsing fail, use status text
-          errorMessage = response.statusText || errorMessage;
-        }
-      }
-      
-      console.error(`API Error: ${errorMessage}`);
-      throw new Error(errorMessage);
-    }
-    
-    return response;
-  } catch (error) {
-    console.error('Network request failed:', {
-      url,
-      method: options.method || 'GET',
-      error: error.message,
-      stack: error.stack
-    });
-    throw error;
   }
 }
 
@@ -260,13 +238,9 @@ export const apiClient = {
   repairRequests: {
     create: async (data) => {
       try {
-        const csrfToken = getCsrfToken();
         const response = await fetch(`${API_BASE_URL}/repair-requests`, {
           method: 'POST',
-          headers: {
-            ...defaultHeaders,
-            'X-CSRF-Token': csrfToken || ''
-          },
+          headers: defaultHeaders,
           credentials: 'include',
           body: JSON.stringify(data)
         });
@@ -322,22 +296,16 @@ export const apiClient = {
       `${API_BASE_URL}/parts/search?q=${encodeURIComponent(query)}`
     ).then(handleResponse)
   },
-
-  // Delete this duplicate entry
   
-  // Add image upload utility
+  // Add image upload utility with simplified headers
   upload: {
     image: (formData) => {
       // Don't use JSON for FormData
-      const csrfToken = getCsrfToken();
       const authToken = localStorage.getItem('authToken');
-      console.log('Using CSRF token for upload:', csrfToken ? 'token present' : 'token missing');
-      console.log('Auth token found for upload:', !!authToken);
       
       return fetch(`${API_BASE_URL}/admin/upload`, {
         method: 'POST',
         headers: {
-          'X-CSRF-Token': csrfToken || '',
           ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
         },
         body: formData,
