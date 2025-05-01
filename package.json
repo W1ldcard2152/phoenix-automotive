@@ -8,7 +8,7 @@
     "dev:client": "vite",
     "build": "vite build --emptyOutDir --outDir dist",
     "start": "node src/server.js",
-    "postbuild": "node -e \"require('fs').copyFileSync('public/_redirects', 'dist/_redirects')\"",
+    "postbuild": "node -e \"import fs from 'fs'; fs.copyFileSync('public/_redirects', 'dist/_redirects')\"",
     "start:dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "lint": "eslint .",
     "preview": "vite preview",
