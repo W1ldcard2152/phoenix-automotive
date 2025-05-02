@@ -14,7 +14,7 @@ export const decodeVinNHTSA = async (vin) => {
     
     console.log(`Attempting to decode VIN ${vin} using proxy endpoint`);
     
-    // Fix: Use the correct URL format to ensure the proxy works correctly
+    // Use the correct URL format to ensure the proxy works correctly
     const url = `${NHTSA_BASE_URL}/${vin}`;
     console.log(`Request URL: ${url}`);
     
@@ -34,15 +34,33 @@ export const decodeVinNHTSA = async (vin) => {
         const errorResponse = await response.json();
         errorDetails = `: ${errorResponse.message || errorResponse.error || ''}`;
       } catch (e) {
-        // Ignore error parsing error
+        // If can't parse JSON, try to get text instead
+        try {
+          const text = await response.text();
+          errorDetails = `: ${text.substring(0, 100)}`;
+        } catch (textError) {
+          // Ignore text extraction error
+        }
       }
       
       console.error(`VIN decode API responded with status: ${response.status}${errorDetails}`);
       throw new Error(`Failed to decode VIN: HTTP error ${response.status}${errorDetails}`);
     }
     
-    const data = await response.json();
-    console.log('VIN decode response received successfully');
+    // Get the text first for safer parsing
+    const text = await response.text();
+    console.log('Response length:', text.length, 'Preview:', text.substring(0, 50));
+    
+    // Try to parse the text with error handling
+    let data;
+    try {
+      // Remove potential BOM character and other invalid chars at the beginning
+      const cleanedText = text.replace(/^\uFEFF/, '').trim();
+      data = JSON.parse(cleanedText);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError, 'Text preview:', text.substring(0, 200));
+      throw new Error(`Failed to parse VIN API response: ${parseError.message}`);
+    }
    
     // NHTSA specific error checking
     if (data.Message && data.Message.includes('Error')) {
@@ -50,23 +68,37 @@ export const decodeVinNHTSA = async (vin) => {
       throw new Error(data.Message);
     }
 
+    // Validate that Results exists
+    if (!data.Results || !Array.isArray(data.Results)) {
+      console.error('Unexpected response format:', data);
+      throw new Error('Invalid response format: Results array missing');
+    }
+
     // Extract relevant fields from NHTSA response
     const vehicleInfo = {
       vin: vin,
-      year: data.Results.find(item => item.Variable === "Model Year")?.Value,
-      make: data.Results.find(item => item.Variable === "Make")?.Value,
-      model: data.Results.find(item => item.Variable === "Model")?.Value,
-      trim: data.Results.find(item => item.Variable === "Trim")?.Value,
-      engineSize: data.Results.find(item => item.Variable === "Displacement (L)")?.Value,
-      engineCylinders: data.Results.find(item => item.Variable === "Engine Number of Cylinders")?.Value,
-      transmissionType: data.Results.find(item => item.Variable === "Transmission Style")?.Value,
-      driveType: data.Results.find(item => item.Variable === "Drive Type")?.Value,
+      year: extractValue(data.Results, "Model Year"),
+      make: extractValue(data.Results, "Make"),
+      model: extractValue(data.Results, "Model"),
+      trim: extractValue(data.Results, "Trim"),
+      engineSize: extractValue(data.Results, "Displacement (L)"),
+      engineCylinders: extractValue(data.Results, "Engine Number of Cylinders"),
+      transmissionType: extractValue(data.Results, "Transmission Style"),
+      driveType: extractValue(data.Results, "Drive Type")
     };
+
+    // Enhanced logging for debugging
+    console.log('Extracted vehicle info:', {
+      vin: vehicleInfo.vin,
+      year: vehicleInfo.year,
+      make: vehicleInfo.make,
+      model: vehicleInfo.model
+    });
 
     // Validate required fields
     if (!vehicleInfo.year || !vehicleInfo.make || !vehicleInfo.model) {
       console.error('Missing essential vehicle information in API response');
-      console.log('Response data:', data);
+      console.log('Response data structure:', JSON.stringify(data).substring(0, 500));
       throw new Error('Could not decode essential vehicle information');
     }
 
@@ -90,6 +122,12 @@ export const decodeVinNHTSA = async (vin) => {
   }
 };
 
+// Helper function to safely extract values from NHTSA response
+function extractValue(results, variableName) {
+  const item = results.find(item => item.Variable === variableName);
+  return item?.Value || '';
+}
+
 export const validateVinWithDatabase = async (vin, vehicleInfo) => {
   try {
     // Updated to use the correct endpoint
@@ -105,7 +143,9 @@ export const validateVinWithDatabase = async (vin, vehicleInfo) => {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to validate VIN');
+      const errorText = await response.text();
+      console.error(`Database validation error: ${response.status}`, errorText);
+      throw new Error(`Failed to validate VIN: ${errorText}`);
     }
 
     const data = await response.json();
@@ -153,8 +193,27 @@ export const handleVinDecode = async (vin) => {
       throw new Error('Invalid VIN format');
     }
 
-    // Step 1: Decode with NHTSA
-    const nhtsaInfo = await decodeVinNHTSA(formattedVin);
+    // Step 1: Decode with NHTSA with retry logic
+    let nhtsaInfo;
+    let attempts = 0;
+    const maxAttempts = 2;
+    
+    while (attempts < maxAttempts) {
+      try {
+        nhtsaInfo = await decodeVinNHTSA(formattedVin);
+        break; // Success, exit the retry loop
+      } catch (decodeError) {
+        attempts++;
+        console.error(`VIN decode attempt ${attempts} failed:`, decodeError);
+        
+        if (attempts >= maxAttempts) {
+          throw decodeError; // Rethrow after max attempts
+        }
+        
+        // Wait briefly before retry
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
    
     // Step 2: Validate against our database
     const validatedInfo = await validateVinWithDatabase(formattedVin, nhtsaInfo);

@@ -93,8 +93,7 @@ router.post('/decode', async (req, res) => {
   }
 });
 
-// Proxy route to NHTSA API
-// Updated proxy route in src/api/routes/validateVin.js
+// Improved proxy route to NHTSA API
 router.get('/nhtsa/:vin', async (req, res) => {
   try {
     const { vin } = req.params;
@@ -109,13 +108,19 @@ router.get('/nhtsa/:vin', async (req, res) => {
     console.log(`Proxying VIN decode request to NHTSA API: ${nhtsaUrl}`);
     
     try {
+      // Add proper timeout and headers
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+      
       const response = await fetch(nhtsaUrl, {
+        signal: controller.signal,
         headers: {
           'Accept': 'application/json',
           'User-Agent': 'Phoenix-Automotive-App/1.0'
-        },
-        timeout: 15000 // 15 second timeout
+        }
       });
+      
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         console.error(`NHTSA API responded with status: ${response.status}, statusText: ${response.statusText}`);
@@ -125,20 +130,60 @@ router.get('/nhtsa/:vin', async (req, res) => {
         });
       }
       
+      // Check content type before parsing to help diagnose issues
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         console.error(`Unexpected content type from NHTSA API: ${contentType}`);
+        
+        // Get the raw text to see what the API is actually returning
+        const text = await response.text();
+        console.log('Raw response from NHTSA API:', text.substring(0, 100)); // Log first 100 chars
+        
+        // Try to clean the response if it's not valid JSON
+        try {
+          // Remove potential BOM character and other invalid chars
+          const cleanedText = text.replace(/^\uFEFF/, '').trim();
+          const data = JSON.parse(cleanedText);
+          console.log('Successfully parsed cleaned JSON');
+          return res.json(data);
+        } catch (parseError) {
+          console.error('Failed to parse cleaned response:', parseError);
+          return res.status(500).json({
+            error: 'Invalid response format from NHTSA API',
+            message: `Expected JSON but got: ${contentType}`,
+            responsePreview: text.substring(0, 200) // First 200 chars for debugging
+          });
+        }
+      }
+      
+      // Get the text first for safer parsing
+      const text = await response.text();
+      let data;
+      
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError, 'Text:', text.substring(0, 200));
         return res.status(500).json({
-          error: 'Invalid response from NHTSA API',
-          message: `Expected JSON but got: ${contentType}`
+          error: 'Failed to parse NHTSA API response',
+          message: parseError.message,
+          responsePreview: text.substring(0, 100) // First 100 chars for debugging
         });
       }
       
-      const data = await response.json();
       console.log('Successfully proxied NHTSA API response');
       return res.json(data);
       
     } catch (fetchError) {
+      // Check for timeout or other network errors
+      if (fetchError.name === 'AbortError') {
+        console.error('NHTSA API request timeout');
+        return res.status(504).json({
+          error: 'NHTSA API request timed out',
+          message: 'The request to the NHTSA API took too long to complete'
+        });
+      }
+      
       console.error('Error fetching from NHTSA API:', fetchError);
       return res.status(500).json({
         error: 'Failed to fetch from NHTSA API',
