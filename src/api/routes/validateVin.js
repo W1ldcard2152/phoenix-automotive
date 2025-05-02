@@ -49,51 +49,7 @@ router.post('/validate', async (req, res) => {
   }
 });
 
-router.post('/decode', async (req, res) => {
-  try {
-    const { vin } = req.body;
-
-    if (!vin) {
-      return res.status(400).json({
-        error: 'VIN is required'
-      });
-    }
-
-    const response = await fetch(
-      `https://vpic.nhtsa.dot.gov/api/vehicles/decodevin/${vin}?format=json`
-    );
-
-    if (!response.ok) {
-      throw new Error('Failed to decode VIN with NHTSA');
-    }
-
-    const data = await response.json();
-    
-    // Extract relevant fields from NHTSA response
-    const vehicleInfo = {
-      vin: vin,
-      year: data.Results.find(item => item.Variable === "Model Year")?.Value,
-      make: data.Results.find(item => item.Variable === "Make")?.Value,
-      model: data.Results.find(item => item.Variable === "Model")?.Value,
-      trim: data.Results.find(item => item.Variable === "Trim")?.Value,
-      engineSize: data.Results.find(item => item.Variable === "Displacement (L)")?.Value,
-      engineCylinders: data.Results.find(item => item.Variable === "Engine Number of Cylinders")?.Value,
-      transmissionType: data.Results.find(item => item.Variable === "Transmission Style")?.Value,
-      driveType: data.Results.find(item => item.Variable === "Drive Type")?.Value,
-    };
-
-    res.json(vehicleInfo);
-
-  } catch (error) {
-    console.error('VIN Decode Error:', error);
-    res.status(500).json({
-      error: 'Failed to decode VIN',
-      details: error.message
-    });
-  }
-});
-
-// Improved proxy route to NHTSA API
+// Enhanced NHTSA API proxy with better error handling and fallbacks
 router.get('/nhtsa/:vin', async (req, res) => {
   try {
     const { vin } = req.params;
@@ -130,44 +86,41 @@ router.get('/nhtsa/:vin', async (req, res) => {
         });
       }
       
-      // Check content type before parsing to help diagnose issues
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        console.error(`Unexpected content type from NHTSA API: ${contentType}`);
-        
-        // Get the raw text to see what the API is actually returning
-        const text = await response.text();
-        console.log('Raw response from NHTSA API:', text.substring(0, 100)); // Log first 100 chars
-        
-        // Try to clean the response if it's not valid JSON
-        try {
-          // Remove potential BOM character and other invalid chars
-          const cleanedText = text.replace(/^\uFEFF/, '').trim();
-          const data = JSON.parse(cleanedText);
-          console.log('Successfully parsed cleaned JSON');
-          return res.json(data);
-        } catch (parseError) {
-          console.error('Failed to parse cleaned response:', parseError);
-          return res.status(500).json({
-            error: 'Invalid response format from NHTSA API',
-            message: `Expected JSON but got: ${contentType}`,
-            responsePreview: text.substring(0, 200) // First 200 chars for debugging
-          });
-        }
-      }
-      
       // Get the text first for safer parsing
       const text = await response.text();
+      console.log('Raw response length:', text.length);
+      console.log('Raw response preview:', text.substring(0, 100));
+      
+      // Check if we received HTML instead of JSON
+      if (text.toLowerCase().includes('<!doctype html>') || text.toLowerCase().includes('<html')) {
+        console.error('HTML content detected in NHTSA response');
+        return res.status(500).json({
+          error: 'Invalid response from NHTSA API',
+          message: 'Received HTML instead of JSON'
+        });
+      }
+      
+      // Clean up potential BOM character and whitespace
+      const cleanedText = text.replace(/^\uFEFF/, '').trim();
       let data;
       
       try {
-        data = JSON.parse(text);
+        data = JSON.parse(cleanedText);
       } catch (parseError) {
-        console.error('JSON parse error:', parseError, 'Text:', text.substring(0, 200));
+        console.error('JSON parse error:', parseError, 'Text:', cleanedText.substring(0, 200));
         return res.status(500).json({
           error: 'Failed to parse NHTSA API response',
           message: parseError.message,
-          responsePreview: text.substring(0, 100) // First 100 chars for debugging
+          responsePreview: cleanedText.substring(0, 100) // First 100 chars for debugging
+        });
+      }
+      
+      // Check for valid Results array
+      if (!data.Results || !Array.isArray(data.Results)) {
+        console.error('Missing Results array in NHTSA response');
+        return res.status(500).json({
+          error: 'Invalid NHTSA API response format',
+          message: 'Missing Results array'
         });
       }
       
@@ -200,5 +153,71 @@ router.get('/nhtsa/:vin', async (req, res) => {
     });
   }
 });
+
+// Direct NHTSA API call as fallback
+router.post('/direct-decode', async (req, res) => {
+  try {
+    const { vin } = req.body;
+    
+    if (!vin || vin.length !== 17) {
+      return res.status(400).json({
+        error: 'Valid 17-character VIN is required'
+      });
+    }
+    
+    const nhtsaUrl = `https://vpic.nhtsa.dot.gov/api/vehicles/decodevin/${vin}?format=json`;
+    console.log(`Making direct request to NHTSA API: ${nhtsaUrl}`);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    
+    const response = await fetch(nhtsaUrl, {
+      signal: controller.signal,
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Phoenix-Automotive-App/1.0'
+      }
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error(`NHTSA API responded with status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Process the data to extract only what we need
+    const vehicleInfo = {
+      vin: vin,
+      year: extractValue(data.Results, "Model Year"),
+      make: extractValue(data.Results, "Make"),
+      model: extractValue(data.Results, "Model"),
+      trim: extractValue(data.Results, "Trim"),
+      engineSize: extractValue(data.Results, "Displacement (L)"),
+      engineCylinders: extractValue(data.Results, "Engine Number of Cylinders"),
+      transmissionType: extractValue(data.Results, "Transmission Style"),
+      driveType: extractValue(data.Results, "Drive Type")
+    };
+    
+    res.json(vehicleInfo);
+    
+  } catch (error) {
+    console.error('Direct VIN Decode Error:', error);
+    res.status(500).json({
+      error: 'Failed to decode VIN directly',
+      details: error.message
+    });
+  }
+});
+
+// Helper function to extract values from NHTSA Results array
+function extractValue(results, variableName) {
+  if (!Array.isArray(results)) {
+    return '';
+  }
+  const item = results.find(item => item.Variable === variableName);
+  return item?.Value || '';
+}
 
 export default router;

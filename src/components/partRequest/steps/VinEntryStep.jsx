@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader2, CheckCircle } from "lucide-react";
-import { handleVinDecode, validateVinFormat } from '@/utils/vinUtils';
+import { validateVinFormat } from '@/utils/vinUtils';
 import FormNavigation from '../ui/FormNavigation';
 
 const VinEntryStep = ({
@@ -17,17 +17,58 @@ const VinEntryStep = ({
   const [isValid, setIsValid] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [localError, setLocalError] = useState('');
+  const [showRetryButton, setShowRetryButton] = useState(false);
+  const [submitAttempts, setSubmitAttempts] = useState(0);
+
+  // Update local state when prop changes
+  useEffect(() => {
+    if (vin !== localVin) {
+      setLocalVin(vin || '');
+      setIsValid(validateVinFormat(vin));
+    }
+  }, [vin]);
+
+  // Reset error state when user makes changes
+  useEffect(() => {
+    setLocalError('');
+    setShowRetryButton(false);
+  }, [localVin]);
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
     setIsChecking(true);
     setLocalError('');
+    setShowRetryButton(false);
 
     try {
+      // Update attempts counter
+      setSubmitAttempts(prev => prev + 1);
+      
+      // Extra validation before submission
+      if (!validateVinFormat(localVin)) {
+        throw new Error('Please enter a valid 17-character VIN');
+      }
+      
+      console.log(`Submitting VIN: ${localVin} (Attempt #${submitAttempts + 1})`);
       await onVinSubmit(localVin);
     } catch (err) {
       console.error('VIN submission error:', err);
-      setLocalError(err.message || 'Failed to process VIN');
+      
+      // Provide more user-friendly error messages
+      let userMessage = err.message || 'Failed to process VIN';
+      let shouldShowRetry = false;
+      
+      // Handle specific error types
+      if (userMessage.includes('JSON.parse') || 
+          userMessage.includes('HTML content') || 
+          userMessage.includes('network') ||
+          userMessage.includes('timed out')) {
+        userMessage = 'Vehicle database service is temporarily unavailable. Please try again later.';
+        shouldShowRetry = true;
+      }
+      
+      setLocalError(userMessage);
+      setShowRetryButton(shouldShowRetry);
     } finally {
       setIsChecking(false);
     }
@@ -38,9 +79,9 @@ const VinEntryStep = ({
     setLocalVin(value);
     onVinChange(value);
     setIsValid(validateVinFormat(value));
-    setLocalError('');
   };
 
+  // Combine local and prop errors
   const displayError = localError || error;
 
   return (
@@ -57,6 +98,8 @@ const VinEntryStep = ({
             className={`font-mono uppercase pr-10 ${
               localVin.length === 17 ? (isValid ? 'border-green-500' : 'border-red-500') : ''
             }`}
+            aria-invalid={localVin.length === 17 && !isValid}
+            aria-describedby={displayError ? "vin-error" : undefined}
             disabled={isLoading || isChecking}
           />
           {localVin.length === 17 && (
@@ -75,9 +118,20 @@ const VinEntryStep = ({
       </div>
 
       {displayError && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" id="vin-error">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{displayError}</AlertDescription>
+          {showRetryButton && submitAttempts > 0 && (
+            <div className="mt-2">
+              <button
+                type="button"
+                className="text-sm underline hover:no-underline"
+                onClick={handleSubmit}
+              >
+                Try again
+              </button>
+            </div>
+          )}
         </Alert>
       )}
 
