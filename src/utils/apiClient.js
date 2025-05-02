@@ -280,15 +280,131 @@ export const apiClient = {
   },
 
   vin: {
-    decode: (vin) => makeRequest(`${API_BASE_URL}/vin/decode`, {
-      method: 'POST',
-      body: JSON.stringify({ vin })
-    }).then(handleResponse),
+    /**
+     * Decode a VIN using multiple strategies with fallbacks
+     * @param {String} vin - The VIN to decode
+     * @returns {Object} Vehicle information
+     */
+    decode: async (vin) => {
+      try {
+        // Strategy 1: Try our server proxy endpoint
+        try {
+          console.log('Attempting VIN decode via server proxy:', vin);
+          const response = await fetch('/api/vin/direct-decode', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ vin })
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.vehicleInfo) {
+              console.log('Server proxy VIN decode successful');
+              return data;
+            } else {
+              console.warn('Server proxy returned no vehicle info');
+            }
+          } else {
+            const errorText = await response.text();
+            console.warn('Server proxy failed:', response.status, errorText);
+          }
+        } catch (proxyError) {
+          console.error('Server proxy error:', proxyError);
+          // Continue to next strategy
+        }
+        
+        // Strategy 2: Try direct NHTSA API call
+        try {
+          console.log('Attempting direct NHTSA call:', vin);
+          const nhtsaUrl = `https://vpic.nhtsa.dot.gov/api/vehicles/decodevin/${vin}?format=json`;
+          
+          const directResponse = await fetch(nhtsaUrl, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'Phoenix-Automotive-App/1.0'
+            }
+          });
+          
+          if (!directResponse.ok) {
+            throw new Error(`Direct NHTSA API call failed: ${directResponse.status}`);
+          }
+          
+          const nhtsaData = await directResponse.json();
+          
+          // Extract vehicle info
+          const extractValue = (results, variableName) => {
+            const item = results.find(item => item.Variable === variableName);
+            return item?.Value || '';
+          };
+          
+          const vehicleInfo = {
+            vin: vin,
+            year: extractValue(nhtsaData.Results, "Model Year"),
+            make: extractValue(nhtsaData.Results, "Make"),
+            model: extractValue(nhtsaData.Results, "Model"),
+            trim: extractValue(nhtsaData.Results, "Trim"),
+            engineSize: extractValue(nhtsaData.Results, "Displacement (L)"),
+            engineCylinders: extractValue(nhtsaData.Results, "Engine Number of Cylinders"),
+            transmissionType: extractValue(nhtsaData.Results, "Transmission Style"),
+            driveType: extractValue(nhtsaData.Results, "Drive Type")
+          };
+          
+          console.log('Direct NHTSA call successful');
+          return { vehicleInfo, rawData: nhtsaData };
+        } catch (directError) {
+          console.error('Direct NHTSA API call failed:', directError);
+          throw directError;
+        }
+      } catch (error) {
+        console.error('VIN Decode Error:', error);
+        throw new Error('Failed to decode VIN: ' + (error.message || 'Unknown error'));
+      }
+    },
     
-    validate: (vin, vehicleInfo) => makeRequest(`${API_BASE_URL}/vin/validate`, {
-      method: 'POST',
-      body: JSON.stringify({ vin, vehicleInfo })
-    }).then(handleResponse)
+    /**
+     * Test the NHTSA API connection
+     * @returns {Object} Test results
+     */
+    testConnection: async () => {
+      try {
+        const response = await fetch('/api/vin/test-connection');
+        return response.json();
+      } catch (error) {
+        console.error('API Connection test failed:', error);
+        throw error;
+      }
+    },
+    
+    /**
+     * Validate a VIN against our database
+     * @param {String} vin - The VIN to validate
+     * @param {Object} vehicleInfo - Optional vehicle info
+     * @returns {Object} Validation results
+     */
+    validate: async (vin, vehicleInfo = null) => {
+      try {
+        const response = await fetch('/api/vin/validate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ vin, vehicleInfo })
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Validation failed: ${errorText}`);
+        }
+        
+        return response.json();
+      } catch (error) {
+        console.error('VIN validation error:', error);
+        throw error;
+      }
+    }
   },
 
   parts: {
