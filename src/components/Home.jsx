@@ -46,8 +46,8 @@ const Home = () => {
                     className="bg-red-700 hover:bg-red-800 text-white w-full md:w-auto"
                     asChild
                   >
-                    <Link to="/parts" className="inline-flex items-center justify-center gap-2">
-                      Browse Parts
+                    <Link to="/repair" className="inline-flex items-center justify-center gap-2">
+                      Book A Service Appointment
                       <ArrowRight className="h-5 w-5" />
                     </Link>
                   </Button>
@@ -57,7 +57,7 @@ const Home = () => {
                     className="border-white bg-white/5 hover:bg-white/10 text-white w-full md:w-auto"
                     asChild
                   >
-                    <Link to="/repair">Repair Services</Link>
+                    <Link to="/parts">Browse Parts</Link>
                   </Button>
                 </div>
               </div>

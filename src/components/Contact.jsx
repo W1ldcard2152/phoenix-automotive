@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Phone, MessageSquare, Clock, ArrowRight } from 'lucide-react';
+import { MapPin, Phone, MessageSquare, Clock, Mail, ArrowRight } from 'lucide-react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ResponsiveContainer } from '@/components/layout';
@@ -36,17 +36,17 @@ const Contact = () => {
         </ContactItem>
         
         <ContactItem 
-          icon={Mail}
-          href="mailto:PhxAutoSalvage@gmail.com"
-        >
-          PhxAutoSalvage@gmail.com
-        </ContactItem>
-
-        <ContactItem 
           icon={Phone}
           href="tel:3158300008"
         >
           (315) 830-0008
+        </ContactItem>
+        
+        <ContactItem 
+          icon={Mail}
+          href="mailto:PhxAutoSalvage@gmail.com"
+        >
+          PhxAutoSalvage@gmail.com
         </ContactItem>
         
         <ContactItem 
@@ -99,7 +99,7 @@ const Contact = () => {
             loading="lazy"
             title="Phoenix Automotive Location"
             referrerPolicy="no-referrer-when-downgrade"
-      ></iframe>
+        ></iframe>
       </div>
     </Card>
   );
