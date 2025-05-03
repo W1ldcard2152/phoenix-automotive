@@ -57,7 +57,7 @@ const Home = () => {
                     className="border-white bg-white/5 hover:bg-white/10 text-white w-full md:w-auto"
                     asChild
                   >
-                    <Link to="/parts">Browse Parts</Link>
+                    <Link to="/parts">Browse</Link>
                   </Button>
                 </div>
               </div>
