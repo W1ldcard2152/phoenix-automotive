@@ -14,6 +14,7 @@ import authRouter from './routes/Auth.js';
 import { authenticateToken } from './middleware/auth.js';
 import { csrfProtection } from './middleware/csrf.js';
 import { securityHeaders, rateLimit } from './middleware/security.js';
+import vehicleDataRouter from './routes/VehicleData.js';
 
 const router = Router();
 
@@ -82,6 +83,7 @@ router.use(rateLimit);
 console.log('Mounting routes...');
 
 // Public routes
+router.use('/vehicle-data', vehicleDataRouter);
 router.use('/auth', csrfProtection, authRouter);
 router.use('/vin', vinValidationRouter);
 // Remove this line which is causing the error

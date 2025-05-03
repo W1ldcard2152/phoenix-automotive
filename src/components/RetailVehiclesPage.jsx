@@ -1,6 +1,6 @@
+// src/components/RetailVehiclesPage.jsx
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { apiClient } from '../utils/apiClient';
 import { ResponsiveContainer, ResponsiveGrid } from '@/components/layout';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { Card } from "@/components/ui/card";
@@ -12,25 +12,89 @@ const RetailVehiclesPage = () => {
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRIES = 3;
 
   useEffect(() => {
+    // Create an AbortController for fetch cancelation
+    const controller = new AbortController();
+    
     const fetchVehicles = async () => {
+      if (retryCount >= MAX_RETRIES) {
+        setError("Maximum retry attempts reached. Please try again later.");
+        setLoading(false);
+        return;
+      }
+      
       try {
         setLoading(true);
         setError(null);
-        const data = await apiClient.retailVehicles.getAll();
-        console.log('Received vehicle data:', data);
-        setVehicles(data);
+        
+        console.log('Fetching retail vehicles data...');
+        
+        // Use the new batched endpoint
+        const response = await fetch('/api/vehicle-data/batched', {
+          signal: controller.signal,
+          headers: {
+            'Cache-Control': 'max-age=30'
+          }
+        });
+        
+        if (!response.ok) {
+          // Check for rate limiting
+          if (response.status === 429) {
+            const retryAfter = parseInt(response.headers.get('Retry-After') || '5');
+            console.warn(`Rate limited. Retrying after ${retryAfter} seconds...`);
+            
+            // Increment retry count
+            setRetryCount(prev => prev + 1);
+            
+            // Wait and retry
+            setTimeout(() => fetchVehicles(), retryAfter * 1000);
+            return;
+          }
+          
+          throw new Error(`API error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Received vehicle data:', data.retailVehicles.length);
+        
+        // Only set retail vehicles from the batched response
+        setVehicles(data.retailVehicles);
+        setError(null);
       } catch (err) {
-        console.error('Failed to fetch vehicles:', err);
-        setError(err.message);
+        // Don't set error for aborted requests
+        if (err.name === 'AbortError') {
+          console.log('Fetch aborted');
+          return;
+        }
+        
+        console.error('Fetch error:', err);
+        setError(`Error: ${err.message}`);
+        
+        // Implement exponential backoff retry
+        const backoffTime = Math.min(1000 * Math.pow(2, retryCount), 30000);
+        console.log(`Retrying in ${backoffTime/1000} seconds...`);
+        
+        // Increment retry count
+        setRetryCount(prev => prev + 1);
+        
+        // Wait and retry
+        setTimeout(() => fetchVehicles(), backoffTime);
       } finally {
         setLoading(false);
       }
     };
   
     fetchVehicles();
-  }, []);
+    
+    // Cleanup function to abort fetch if component unmounts
+    return () => {
+      console.log('Aborting vehicle data fetch');
+      controller.abort();
+    };
+  }, []); // Empty dependency array ensures it only runs once on mount
 
   const VehicleCard = ({ vehicle }) => (
     <Card className="overflow-hidden bg-white hover:shadow-lg transition-shadow">
@@ -144,18 +208,39 @@ const RetailVehiclesPage = () => {
     </div>
   );
 
-  if (loading || error) {
+  if (loading) {
     return (
       <ResponsiveContainer>
         <div className="text-center">
-          {loading ? (
-            <div className="animate-pulse space-y-4">
-              <div className="h-8 w-48 bg-gray-200 rounded mx-auto"/>
-              <div className="h-4 w-64 bg-gray-200 rounded mx-auto"/>
-            </div>
-          ) : (
-            <div className="text-red-600">Error loading vehicles: {error}</div>
-          )}
+          <div className="animate-pulse space-y-4">
+            <div className="h-8 w-48 bg-gray-200 rounded mx-auto"/>
+            <div className="h-4 w-64 bg-gray-200 rounded mx-auto"/>
+            <div className="h-64 w-full max-w-md bg-gray-200 rounded mx-auto mt-8"/>
+          </div>
+        </div>
+      </ResponsiveContainer>
+    );
+  }
+
+  if (error) {
+    return (
+      <ResponsiveContainer>
+        <div className="text-center">
+          <div className="text-red-600 space-y-4">
+            <h3 className="text-xl font-bold">Error loading vehicles</h3>
+            <p>{error}</p>
+            <Button
+              variant="outline"
+              className="mt-4"
+              onClick={() => {
+                setRetryCount(0);
+                setError(null);
+                window.location.reload();
+              }}
+            >
+              Retry
+            </Button>
+          </div>
         </div>
       </ResponsiveContainer>
     );

@@ -1,9 +1,9 @@
+// src/components/DismantledVehiclesPage.jsx
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Clock, Wrench, Calendar, ArrowRight } from 'lucide-react';
-import { apiClient } from '../utils/apiClient';
 import { ResponsiveContainer, MobileDrawer } from '@/components/layout';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 
@@ -13,36 +13,91 @@ const DismantledVehiclesPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRIES = 3;
 
   useEffect(() => {
+    // Create an AbortController for fetch cancelation
+    const controller = new AbortController();
+    
     const fetchVehicles = async () => {
+      if (retryCount >= MAX_RETRIES) {
+        setError("Maximum retry attempts reached. Please try again later.");
+        setLoading(false);
+        return;
+      }
+      
       try {
         setLoading(true);
-        setError(null); // Clear any existing errors
+        setError(null);
         
-        console.log('Starting vehicle fetch...');
-        const data = await apiClient.dismantledVehicles.getAll();
-        console.log('Received vehicle data:', data);
+        console.log('Fetching dismantled vehicles data...');
         
-        if (!Array.isArray(data)) {
-          throw new Error('Invalid response format');
+        // Use the new batched endpoint
+        const response = await fetch('/api/vehicle-data/batched', {
+          signal: controller.signal,
+          headers: {
+            'Cache-Control': 'max-age=30'
+          }
+        });
+        
+        if (!response.ok) {
+          // Check for rate limiting
+          if (response.status === 429) {
+            const retryAfter = parseInt(response.headers.get('Retry-After') || '5');
+            console.warn(`Rate limited. Retrying after ${retryAfter} seconds...`);
+            
+            // Increment retry count
+            setRetryCount(prev => prev + 1);
+            
+            // Wait and retry
+            setTimeout(() => fetchVehicles(), retryAfter * 1000);
+            return;
+          }
+          
+          throw new Error(`API error: ${response.status}`);
         }
         
-        setVehicles(data);
+        const data = await response.json();
+        console.log('Received vehicle data:', data.dismantledVehicles.length);
+        
+        // Only set dismantled vehicles from the batched response
+        setVehicles(data.dismantledVehicles);
+        setError(null);
       } catch (err) {
-        console.error('Failed to fetch vehicles:', {
-          message: err.message,
-          stack: err.stack
-        });
-        setError(err.message);
+        // Don't set error for aborted requests
+        if (err.name === 'AbortError') {
+          console.log('Fetch aborted');
+          return;
+        }
+        
+        console.error('Fetch error:', err);
+        setError(`Error: ${err.message}`);
+        
+        // Implement exponential backoff retry
+        const backoffTime = Math.min(1000 * Math.pow(2, retryCount), 30000);
+        console.log(`Retrying in ${backoffTime/1000} seconds...`);
+        
+        // Increment retry count
+        setRetryCount(prev => prev + 1);
+        
+        // Wait and retry
+        setTimeout(() => fetchVehicles(), backoffTime);
       } finally {
         setLoading(false);
       }
     };
   
     fetchVehicles();
-  }, []);
+    
+    // Cleanup function to abort fetch if component unmounts
+    return () => {
+      console.log('Aborting vehicle data fetch');
+      controller.abort();
+    };
+  }, []); // Empty dependency array ensures it only runs once on mount
 
+  // Rest of your component remains the same...
   const SidebarContent = () => (
     <div className="space-y-6">
       {/* eBay Store Card */}
@@ -154,7 +209,10 @@ const DismantledVehiclesPage = () => {
     if (loading) {
       return (
         <div className="flex justify-center items-center min-h-[200px]">
-          <div className="text-center text-gray-600">Loading vehicles...</div>
+          <div className="text-center text-gray-600">
+            <div className="animate-spin h-8 w-8 border-4 border-red-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p>Loading vehicles...</p>
+          </div>
         </div>
       );
     }
@@ -165,6 +223,17 @@ const DismantledVehiclesPage = () => {
           <div className="text-center text-red-600">
             <p className="font-semibold mb-2">Error loading vehicles</p>
             <p className="text-sm">{error}</p>
+            <Button
+              variant="outline"
+              className="mt-4"
+              onClick={() => {
+                setRetryCount(0);
+                setError(null);
+                window.location.reload();
+              }}
+            >
+              Retry
+            </Button>
           </div>
         </div>
       );
