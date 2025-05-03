@@ -17,39 +17,11 @@ dotenv.config();
 
 const app = express();
 
-// Enhanced CORS Configuration with support for Google Maps domains
+// Enhanced CORS Configuration
 const corsOptions = {
   origin: function (origin, callback) {
-    try {
-      // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-
-      // Allow Google domains for Maps and related services
-      if (origin.includes('google.com') || 
-          origin.includes('googleapis.com') ||
-          origin.includes('gstatic.com')) {
-        return callback(null, true);
-      }
-
-      // Allow same origin requests
-      if (origin.includes('phoenix-automotive') || origin.includes('render.com')) {
-        return callback(null, true);
-      }
-
-      const allowedOrigins = process.env.NODE_ENV === 'production'
-        ? [process.env.CLIENT_URL, 'https://phoenix-automotive.onrender.com', 'https://phoenix-automotive-dbue.onrender.com']
-        : ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'];
-
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        console.warn('CORS blocked request from:', origin);
-        callback(new Error('Not allowed by CORS'));
-      }
-    } catch (error) {
-      console.error('CORS error:', error);
-      callback(error);
-    }
+    // Allow all origins for asset files
+    callback(null, true);
   },
   credentials: true,
   optionsSuccessStatus: 200,
@@ -83,7 +55,7 @@ app.use((req, res, next) => {
 // Apply only the essential middleware
 app.use(cookieParser);
 
-// CORS related headers - enhanced for Google Maps
+// CORS related headers
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   
@@ -111,7 +83,7 @@ app.use(express.json({
 
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Health check route with basic system info
+// Health check route
 app.get('/healthz', (req, res) => {
   const health = {
     uptime: process.uptime(),
@@ -119,40 +91,6 @@ app.get('/healthz', (req, res) => {
     status: 'OK'
   };
   res.status(200).json(health);
-});
-
-// Enhanced request logging for all environments
-app.use((req, res, next) => {
-  const start = Date.now();
-  
-  // Log request
-  console.log({
-    timestamp: new Date().toISOString(),
-    type: 'request',
-    method: req.method,
-    path: req.path,
-    userAgent: req.get('user-agent'),
-    ip: req.ip
-  });
-
-  // Log response
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    if (res.statusCode >= 400) {
-      console.error({
-        timestamp: new Date().toISOString(),
-        type: 'response',
-        method: req.method,
-        path: req.path,
-        statusCode: res.statusCode,
-        duration: `${duration}ms`,
-        userAgent: req.get('user-agent'),
-        ip: req.ip
-      });
-    }
-  });
-
-  next();
 });
 
 // API routes
@@ -171,16 +109,24 @@ if (process.env.NODE_ENV === 'production') {
     maxAge: '1y',
     etag: true,
     lastModified: true,
-    setHeaders: (res, path) => {
+    setHeaders: (res, filePath) => {
       // Set correct Content-Type header for different file types
-      if (path.endsWith('.js')) {
-        res.set('Content-Type', 'application/javascript');
-      } else if (path.endsWith('.css')) {
-        res.set('Content-Type', 'text/css');
+      if (filePath.endsWith('.js')) {
+        res.set('Content-Type', 'application/javascript; charset=UTF-8');
+      } else if (filePath.endsWith('.css')) {
+        res.set('Content-Type', 'text/css; charset=UTF-8');
+      } else if (filePath.endsWith('.json')) {
+        res.set('Content-Type', 'application/json; charset=UTF-8');
+      } else if (filePath.endsWith('.svg')) {
+        res.set('Content-Type', 'image/svg+xml');
+      } else if (filePath.endsWith('.png')) {
+        res.set('Content-Type', 'image/png');
+      } else if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) {
+        res.set('Content-Type', 'image/jpeg');
       }
       
       // Set caching headers
-      if (path.includes('/assets/')) {
+      if (filePath.includes('/assets/')) {
         res.set('Cache-Control', 'public, max-age=31536000, immutable');
       } else {
         res.set('Cache-Control', 'public, max-age=86400');
@@ -188,19 +134,7 @@ if (process.env.NODE_ENV === 'production') {
     }
   }));
 
-  // Additional configuration to ensure assets are served correctly
-  app.use((req, res, next) => {
-    // Make sure appropriate content types are set even if not caught by express.static
-    const ext = path.extname(req.path).toLowerCase();
-    if (ext === '.js') {
-      res.set('Content-Type', 'application/javascript');
-    } else if (ext === '.css') {
-      res.set('Content-Type', 'text/css');
-    }
-    next();
-  });
-
-  // Add a specific handler for asset files (prevent 404 errors)
+  // Handle direct requests to asset files with proper MIME types
   app.get('/assets/*', (req, res, next) => {
     // Try to send the file from the dist directory
     const filePath = path.join(__dirname, '../dist', req.path);
@@ -210,18 +144,18 @@ if (process.env.NODE_ENV === 'production') {
     try {
       if (fs.existsSync(filePath)) {
         // Determine content type based on file extension
-        const ext = path.extname(filePath);
+        const ext = path.extname(filePath).toLowerCase();
         let contentType = 'application/octet-stream';
         
         switch (ext) {
           case '.js':
-            contentType = 'application/javascript';
+            contentType = 'application/javascript; charset=UTF-8';
             break;
           case '.css':
-            contentType = 'text/css';
+            contentType = 'text/css; charset=UTF-8';
             break;
           case '.json':
-            contentType = 'application/json';
+            contentType = 'application/json; charset=UTF-8';
             break;
           case '.png':
             contentType = 'image/png';
@@ -232,6 +166,18 @@ if (process.env.NODE_ENV === 'production') {
             break;
           case '.svg':
             contentType = 'image/svg+xml';
+            break;
+          case '.woff':
+            contentType = 'font/woff';
+            break;
+          case '.woff2':
+            contentType = 'font/woff2';
+            break;
+          case '.ttf':
+            contentType = 'font/ttf';
+            break;
+          case '.eot':
+            contentType = 'application/vnd.ms-fontobject';
             break;
         }
         
@@ -249,6 +195,43 @@ if (process.env.NODE_ENV === 'production') {
     
     // If we get here, the file wasn't found or had an error
     next();
+  });
+
+  // Additional middleware for ensuring MIME types are set correctly
+  app.use((req, res, next) => {
+    // Make sure appropriate content types are set for all asset files
+    if (req.path.includes('/assets/')) {
+      const ext = path.extname(req.path).toLowerCase();
+      if (ext === '.js') {
+        res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
+      } else if (ext === '.css') {
+        res.setHeader('Content-Type', 'text/css; charset=UTF-8');
+      } else if (ext === '.map') {
+        res.setHeader('Content-Type', 'application/json; charset=UTF-8');
+      }
+    }
+    next();
+  });
+
+  // Handle specific CSS and JS files that are causing issues
+  app.get('*/index.*.js', (req, res) => {
+    const jsPath = path.join(__dirname, '../dist', req.path);
+    if (fs.existsSync(jsPath)) {
+      res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
+      res.sendFile(jsPath);
+    } else {
+      res.status(404).send('File not found');
+    }
+  });
+
+  app.get('*/index.*.css', (req, res) => {
+    const cssPath = path.join(__dirname, '../dist', req.path);
+    if (fs.existsSync(cssPath)) {
+      res.setHeader('Content-Type', 'text/css; charset=UTF-8');
+      res.sendFile(cssPath);
+    } else {
+      res.status(404).send('File not found');
+    }
   });
 
   // Handle all client-side routes - serve index.html
@@ -299,6 +282,8 @@ if (process.env.NODE_ENV === 'production') {
           res.status(200).send('<!DOCTYPE html><html><head><title>Phoenix Automotive</title></head><body><div>Loading...</div></body></html>');
         }
       });
+    } else {
+      next();
     }
   });
 } else {
