@@ -1,8 +1,10 @@
+import { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Loader2, Search } from "lucide-react";
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 
 const VehicleInfoStep = ({
   vehicleInfo,
@@ -13,18 +15,32 @@ const VehicleInfoStep = ({
   errors,
   isLoading
 }) => {
+  const { isMobile } = useBreakpoint();
+  const [localVin, setLocalVin] = useState(vehicleInfo.vin || '');
+
+  // Update local state when VIN prop changes
+  useEffect(() => {
+    setLocalVin(vehicleInfo.vin || '');
+  }, [vehicleInfo.vin]);
+
   const handleChange = (field) => (e) => {
     onVehicleInfoChange({ [field]: e.target.value });
   };
 
+  const handleVinChange = (e) => {
+    const value = e.target.value.toUpperCase();
+    setLocalVin(value);
+    onVehicleInfoChange({ vin: value });
+  };
+
   const handleVinLookup = async () => {
-    if (vehicleInfo.vin && vehicleInfo.vin.length === 17) {
-      await onVinLookup(vehicleInfo.vin);
+    if (localVin && localVin.length === 17) {
+      await onVinLookup(localVin);
     }
   };
 
   const getFieldError = (field) => {
-    return errors[`vehicleInfo.${field}`];
+    return errors?.[`vehicleInfo.${field}`];
   };
 
   return (
@@ -34,20 +50,20 @@ const VehicleInfoStep = ({
       {/* VIN with lookup feature */}
       <div className="space-y-2">
         <Label htmlFor="vin">Vehicle Identification Number (VIN)</Label>
-        <div className="flex space-x-2">
+        <div className={`${isMobile ? 'flex flex-col space-y-2' : 'flex space-x-2'}`}>
           <Input
             id="vin"
-            value={vehicleInfo.vin}
-            onChange={handleChange('vin')}
+            value={localVin}
+            onChange={handleVinChange}
             placeholder="Enter 17-character VIN"
-            className="font-mono uppercase"
+            className="font-sans uppercase"
             maxLength={17}
           />
           <Button
             type="button"
             variant="default"
-            className="bg-red-600 hover:bg-red-700 text-white font-medium min-w-[140px] relative overflow-hidden transition-all"
-            disabled={!vehicleInfo.vin || vehicleInfo.vin.length !== 17 || isLoading}
+            className={`bg-red-600 hover:bg-red-700 text-white font-medium relative overflow-hidden transition-all ${isMobile ? 'w-full' : 'min-w-[140px]'}`}
+            disabled={!localVin || localVin.length !== 17 || isLoading}
             onClick={handleVinLookup}
           >
             {isLoading ? (
@@ -61,7 +77,7 @@ const VehicleInfoStep = ({
                 Decode VIN
               </>
             )}
-            {vehicleInfo.vin.length === 17 && !isLoading && (
+            {localVin.length === 17 && !isLoading && (
               <span className="absolute inset-0 bg-green-500/10 animate-pulse rounded-md"></span>
             )}
           </Button>
@@ -80,7 +96,7 @@ const VehicleInfoStep = ({
       <div className="grid md:grid-cols-2 gap-4">
         {/* Year */}
         <div className="space-y-2">
-          <Label htmlFor="year">Year</Label>
+          <Label htmlFor="year">Year *</Label>
           <Input
             id="year"
             value={vehicleInfo.year}
@@ -98,7 +114,7 @@ const VehicleInfoStep = ({
 
         {/* Make */}
         <div className="space-y-2">
-          <Label htmlFor="make">Make</Label>
+          <Label htmlFor="make">Make *</Label>
           <Input
             id="make"
             value={vehicleInfo.make}
@@ -116,7 +132,7 @@ const VehicleInfoStep = ({
 
         {/* Model */}
         <div className="space-y-2">
-          <Label htmlFor="model">Model</Label>
+          <Label htmlFor="model">Model *</Label>
           <Input
             id="model"
             value={vehicleInfo.model}
@@ -132,9 +148,9 @@ const VehicleInfoStep = ({
           )}
         </div>
 
-        {/* Trim (Optional) */}
+        {/* Trim */}
         <div className="space-y-2">
-          <Label htmlFor="trim">Trim (Optional)</Label>
+          <Label htmlFor="trim">Trim</Label>
           <Input
             id="trim"
             value={vehicleInfo.trim}
@@ -151,7 +167,6 @@ const VehicleInfoStep = ({
             value={vehicleInfo.mileage}
             onChange={handleChange('mileage')}
             placeholder="e.g. 45000"
-            required
           />
           {getFieldError('mileage') && (
             <Alert variant="destructive" className="mt-2">
@@ -161,9 +176,9 @@ const VehicleInfoStep = ({
           )}
         </div>
 
-        {/* Engine Type (Optional) */}
+        {/* Engine Type */}
         <div className="space-y-2">
-          <Label htmlFor="engineSize">Engine Type (Optional)</Label>
+          <Label htmlFor="engineSize">Engine Type</Label>
           <Input
             id="engineSize"
             value={vehicleInfo.engineSize}
@@ -172,6 +187,11 @@ const VehicleInfoStep = ({
           />
         </div>
       </div>
+
+      {/* Required field legend */}
+      <p className="text-sm text-muted-foreground mt-4">
+        * Required fields
+      </p>
 
       <div className="flex justify-between pt-6 mt-6 border-t">
         <Button

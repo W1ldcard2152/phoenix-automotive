@@ -36,7 +36,7 @@ const Navbar = () => {
   const navItems = [
     { path: '/', label: 'Home', icon: Home },
     { path: '/repair', label: 'Repair Services', icon: Settings },
-    { path: '/parts', label: 'Shop Parts', icon: ToolIcon },
+    { path: '/parts', label: 'Shop Recycled Parts', icon: ToolIcon },
     { path: '/partsrequest', label: 'Request Parts', icon: FileSearch },
     { path: '/inventory', label: 'Pre-Owned Vehicles', icon: Car },
     { path: '/contact', label: 'Contact', icon: HelpCircle }

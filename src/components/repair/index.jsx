@@ -163,13 +163,16 @@ const validateVehicleInfo = (vehicleInfo) => {
   
   if (!vehicleInfo.make) errors.make = 'Make is required';
   if (!vehicleInfo.model) errors.model = 'Model is required';
-  if (!vehicleInfo.vin) errors.vin = 'VIN is required';
-  else if (vehicleInfo.vin.length !== 17) errors.vin = 'VIN must be 17 characters';
   
-  if (!vehicleInfo.mileage) errors.mileage = 'Mileage is required';
-  else if (isNaN(vehicleInfo.mileage) || parseInt(vehicleInfo.mileage) < 0) {
-    errors.mileage = 'Please enter a valid mileage';
-  }
+  // Remove these VIN validation checks
+  // if (!vehicleInfo.vin) errors.vin = 'VIN is required';
+  // else if (vehicleInfo.vin.length !== 17) errors.vin = 'VIN must be 17 characters';
+  
+  // Remove these mileage validation checks
+  // if (!vehicleInfo.mileage) errors.mileage = 'Mileage is required';
+  // else if (isNaN(vehicleInfo.mileage) || parseInt(vehicleInfo.mileage) < 0) {
+  //   errors.mileage = 'Please enter a valid mileage';
+  // }
   
   return errors;
 };
@@ -347,7 +350,7 @@ const RepairRequestForm = ({ onCancel }) => {
         vehicleInfo: {
           ...vehicleInfo,
           year: parseInt(vehicleInfo.year),
-          mileage: parseInt(vehicleInfo.mileage)
+          mileage: vehicleInfo.mileage ? parseInt(vehicleInfo.mileage) : 0  // Add a default or condition here
         },
         serviceInfo: {
           ...serviceInfo

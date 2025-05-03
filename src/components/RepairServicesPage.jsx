@@ -61,44 +61,46 @@ const RepairServicesPage = () => {
 
   return (
     <div className="space-y-8 md:space-y-12">
-      {/* Hero Banner */}
-      <section className="relative bg-[#1a1f2e]">
-        <div className="relative h-[400px] md:h-[400px] overflow-hidden">
-          <img
-            src="/images/service-page-bg.jpg"
-            alt="Auto Repair Services"
-            className="absolute inset-0 w-full h-full object-cover md:object-center opacity-40"
-            loading="lazy"
-          />
-          <div className="absolute inset-0 bg-black/60" />
-          
-          <ResponsiveContainer
-            mobileClassName="absolute inset-0 flex items-center justify-center px-4"
-            desktopClassName="absolute inset-0 container mx-auto px-4 flex items-center"
-          >
-            <div className="w-full max-w-3xl mx-auto text-center">
-              <div className="space-y-4 md:space-y-6">
-                <h1 className="text-2xl md:text-4xl font-bold text-white tracking-tight">
-                  Expert Auto Repair Services
-                </h1>
-                <p className="text-sm md:text-xl text-white max-w-2xl mx-auto leading-relaxed">
-                Our experienced technicians provide comprehensive repair and maintenance services for all makes and models.
-                </p>
-                
-                <div className="flex flex-col sm:flex-row gap-3 pt-4 justify-center">
-                  <Button 
-                    className="bg-red-700 hover:bg-red-800 text-white px-8 py-6 text-lg shadow-lg mx-auto sm:mx-0"
-                    onClick={toggleForm}
-                  >
-                    {showForm ? "View Our Services" : "Schedule Your Repair Now"}
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </div>
-              </div>
+  {/* Hero Banner */}
+  <section className="relative bg-[#1a1f2e]">
+    <div className="relative h-[400px] md:h-[400px] overflow-hidden">
+      <img
+        src="/images/service-page-bg.jpg"
+        alt="Auto Repair Services"
+        className="absolute inset-0 w-full h-full object-cover md:object-center opacity-40"
+        loading="lazy"
+      />
+      <div className="absolute inset-0 bg-black/60" />
+      
+      <ResponsiveContainer
+        mobileClassName="absolute inset-0 flex items-center justify-center px-4"
+        desktopClassName="absolute inset-0 container mx-auto px-4 flex items-center"
+      >
+        <div className="w-full max-w-3xl mx-auto text-center">
+          <div className="space-y-4 md:space-y-6">
+            <h1 className="text-2xl md:text-4xl font-bold text-white tracking-tight">
+              Expert Auto Repair Services
+            </h1>
+            <p className="text-sm md:text-xl text-white max-w-2xl mx-auto leading-relaxed">
+              Our experienced technicians provide comprehensive repair and maintenance services for all makes and models.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-3 pt-4 justify-center">
+              {!showForm && (
+                <Button 
+                  className="bg-red-700 hover:bg-red-800 text-white px-8 py-6 text-lg shadow-lg mx-auto sm:mx-0"
+                  onClick={toggleForm}
+                >
+                  Schedule Your Repair Now
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              )}
             </div>
-          </ResponsiveContainer>
+          </div>
         </div>
-      </section>
+      </ResponsiveContainer>
+    </div>
+  </section>
 
       {/* Main Content */}
       <ResponsiveContainer>
