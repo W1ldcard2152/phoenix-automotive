@@ -47,7 +47,7 @@ const Home = () => {
                     asChild
                   >
                     <Link to="/repair" className="inline-flex items-center justify-center gap-2">
-                      Book A Service Appointment
+                      Book a Service Appointment
                       <ArrowRight className="h-5 w-5" />
                     </Link>
                   </Button>
