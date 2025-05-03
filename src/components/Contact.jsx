@@ -36,6 +36,13 @@ const Contact = () => {
         </ContactItem>
         
         <ContactItem 
+          icon={Mail}
+          href="mailto:PhxAutoSalvage@gmail.com"
+        >
+          PhxAutoSalvage@gmail.com
+        </ContactItem>
+
+        <ContactItem 
           icon={Phone}
           href="tel:3158300008"
         >
