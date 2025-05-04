@@ -36,7 +36,7 @@ const Home = () => {
                 </h1>
                 
                 <p className="text-sm md:text-xl text-white max-w-2xl leading-relaxed">
-                  Your one stop shop for everything automotive. Need a part? Need it installed? Tired of fixing the car and want to replace it? We can help.
+                  Your one stop shop for everything automotive. Need a part? Need it installed? Need tires? Service? A different car entirely? We can help.
                   If we can't do it, we'll recommend someone who can. Stop by and see us, you'll be glad you did.
                 </p>
                 
