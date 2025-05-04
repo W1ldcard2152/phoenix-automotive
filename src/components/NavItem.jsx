@@ -18,6 +18,15 @@ const NavItem = ({
     ? "text-red-700 font-semibold" 
     : "text-gray-700 hover:text-red-700";
 
+  // Handle navigation and scroll to top
+  const handleNavigation = (e) => {
+    // Call original onClick if provided
+    if (onClick) onClick(e);
+    
+    // Scroll to top on navigation
+    window.scrollTo(0, 0);
+  };
+
   // If this is an external link, render an anchor tag
   if (external) {
     return (
@@ -25,7 +34,7 @@ const NavItem = ({
         href={path}
         target={target}
         rel={rel}
-        onClick={onClick}
+        onClick={handleNavigation}
         className={`${baseClasses} ${activeClasses}`}
         aria-label={subLabel || label}
       >
@@ -42,7 +51,7 @@ const NavItem = ({
           className={`${baseClasses} ${activeClasses} flex items-center`}
           aria-haspopup="true"
           aria-expanded="false"
-          onClick={onClick}
+          onClick={handleNavigation}
         >
           {label}
           <svg 
@@ -64,6 +73,7 @@ const NavItem = ({
                 key={index}
                 to={item.path}
                 className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                onClick={handleNavigation}
               >
                 {item.label}
               </Link>
@@ -74,11 +84,11 @@ const NavItem = ({
     );
   }
 
-  // Otherwise, render a standard link
+  // Otherwise, render a standard link with scroll-to-top behavior
   return (
     <Link
       to={path}
-      onClick={onClick}
+      onClick={handleNavigation}
       className={`${baseClasses} ${activeClasses}`}
       aria-label={subLabel || label}
     >

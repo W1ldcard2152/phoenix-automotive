@@ -1,4 +1,3 @@
-// src/components/DismantledVehiclesPage.jsx
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card } from "@/components/ui/card";
@@ -14,114 +13,55 @@ const DismantledVehiclesPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
-  const MAX_RETRIES = 3;
 
   useEffect(() => {
-    // Create an AbortController for fetch cancelation
-    const controller = new AbortController();
-    
     const fetchVehicles = async () => {
-      if (retryCount >= MAX_RETRIES) {
-        setError("Maximum retry attempts reached. Please try again later.");
-        setLoading(false);
-        return;
-      }
-      
       try {
         setLoading(true);
-        setError(null);
+        setError(null); // Clear any existing errors
         
-        console.log('Fetching dismantled vehicles data...');
+        console.log('Starting vehicle fetch...');
+        const data = await apiClient.dismantledVehicles.getAll();
+        console.log('Received vehicle data:', data);
         
-        // Use the new batched endpoint
-        const response = await fetch('/api/vehicle-data/batched', {
-          signal: controller.signal,
-          headers: {
-            'Cache-Control': 'max-age=30'
-          }
-        });
-        
-        if (!response.ok) {
-          // Check for rate limiting
-          if (response.status === 429) {
-            const retryAfter = parseInt(response.headers.get('Retry-After') || '5');
-            console.warn(`Rate limited. Retrying after ${retryAfter} seconds...`);
-            
-            // Increment retry count
-            setRetryCount(prev => prev + 1);
-            
-            // Wait and retry
-            setTimeout(() => fetchVehicles(), retryAfter * 1000);
-            return;
-          }
-          
-          throw new Error(`API error: ${response.status}`);
+        if (!Array.isArray(data)) {
+          throw new Error('Invalid response format');
         }
         
-        const data = await response.json();
-        console.log('Received vehicle data:', data.dismantledVehicles.length);
-        
-        // Sort the vehicles by dateAcquired, most recent first
-        const sortedVehicles = [...data.dismantledVehicles].sort((a, b) => {
-          return new Date(b.dateAcquired) - new Date(a.dateAcquired);
-        });
-        
-        // Set the sorted vehicles
-        setVehicles(sortedVehicles);
-        setError(null);
+        setVehicles(data);
       } catch (err) {
-        // Don't set error for aborted requests
-        if (err.name === 'AbortError') {
-          console.log('Fetch aborted');
-          return;
-        }
-        
-        console.error('Fetch error:', err);
-        setError(`Error: ${err.message}`);
-        
-        // Implement exponential backoff retry
-        const backoffTime = Math.min(1000 * Math.pow(2, retryCount), 30000);
-        console.log(`Retrying in ${backoffTime/1000} seconds...`);
-        
-        // Increment retry count
-        setRetryCount(prev => prev + 1);
-        
-        // Wait and retry
-        setTimeout(() => fetchVehicles(), backoffTime);
+        console.error('Failed to fetch vehicles:', {
+          message: err.message,
+          stack: err.stack
+        });
+        setError(err.message);
       } finally {
         setLoading(false);
       }
     };
   
     fetchVehicles();
-    
-    // Cleanup function to abort fetch if component unmounts
-    return () => {
-      console.log('Aborting vehicle data fetch');
-      controller.abort();
-    };
-  }, []); // Empty dependency array ensures it only runs once on mount
+  }, []);
 
   const SidebarContent = () => (
     <div className="space-y-6">
-      {/* eBay Store Card */}
+      {/* eBay Store Card - UPDATED */}
       <Card className="overflow-hidden">
-        <div className="bg-[#1a1f2e] p-6">
-          <h2 className="text-xl font-bold mb-4 text-white">Shop Our eBay Store</h2>
-          <p className="text-gray-300 mb-6">
-            Browse thousands of quality used auto parts in our eBay store
-          </p>
-          <a 
-            href="https://www.ebay.com/str/Phoenix-Automotive"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center w-full bg-red-600 text-white px-6 py-3 rounded-md hover:bg-red-700 transition-colors gap-2"
-          >
-            Visit Our eBay Store
-            <ArrowRight className="h-4 w-4" />
-          </a>
-        </div>
+        <a 
+          href="https://www.ebay.com/str/Phoenix-Automotive"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block"
+        >
+          <img 
+            src="/images/ebay.jpg" 
+            alt="Phoenix Automotive eBay Store" 
+            className="w-full h-auto"
+          />
+          <div className="p-4 text-center bg-white">
+            <p className="text-lg font-semibold text-gray-800">Click to visit our eBay Store!</p>
+          </div>
+        </a>
       </Card>
 
       {/* Contact Card */}
@@ -214,10 +154,7 @@ const DismantledVehiclesPage = () => {
     if (loading) {
       return (
         <div className="flex justify-center items-center min-h-[200px]">
-          <div className="text-center text-gray-600">
-            <div className="animate-spin h-8 w-8 border-4 border-red-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-            <p>Loading vehicles...</p>
-          </div>
+          <div className="text-center text-gray-600">Loading vehicles...</div>
         </div>
       );
     }
@@ -228,17 +165,6 @@ const DismantledVehiclesPage = () => {
           <div className="text-center text-red-600">
             <p className="font-semibold mb-2">Error loading vehicles</p>
             <p className="text-sm">{error}</p>
-            <Button
-              variant="outline"
-              className="mt-4"
-              onClick={() => {
-                setRetryCount(0);
-                setError(null);
-                window.location.reload();
-              }}
-            >
-              Retry
-            </Button>
           </div>
         </div>
       );
@@ -301,57 +227,46 @@ const DismantledVehiclesPage = () => {
   return (
     <div className="space-y-8">
       {/* Hero Banner */}
+      {/* Hero Banner */}
       <section className="relative bg-[#1a1f2e]">
         <div className="relative h-[400px] md:h-[400px] overflow-hidden">
           <img
             src="/images/parts-page-bg.jpg"
-            alt="Phoenix Automotive Warehouse"
+            alt="Phoenix Automotive Parts"
             className="absolute inset-0 w-full h-full object-cover md:object-center opacity-40"
             loading="lazy"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent" />
+          <div className="absolute inset-0 bg-black/60" />
           
           <ResponsiveContainer
-            mobileClassName="absolute inset-0 flex items-start px-4 pt-12"
+            mobileClassName="absolute inset-0 flex items-center justify-center px-4"
             desktopClassName="absolute inset-0 container mx-auto px-4 flex items-center"
           >
             <div className="w-full max-w-3xl mx-auto text-center">
               <div className="space-y-4 md:space-y-6">
                 <h1 className="text-2xl md:text-4xl font-bold text-white tracking-tight">
-                  Used OEM Parts
+                  Quality Used Auto Parts
                 </h1>
                 <p className="text-sm md:text-xl text-white max-w-2xl mx-auto leading-relaxed">
-                  Quality recycled auto parts from late model vehicles. All parts are thoroughly inspected and tested.
+                  Browse our selection of thousands of recycled OEM parts guaranteed to fit and work in your car. All parts are inspected and guaranteed to be in excellent working condition unless otherwise noted.
                 </p>
                 
-                {isMobile && (
-                  <div className="flex flex-col sm:flex-row gap-3 pt-4">
-                    <Button 
-                      className="w-full bg-red-700 hover:bg-red-800 text-white"
-                      asChild
+                <div className="pt-4">
+                  <Button 
+                    className="bg-red-700 hover:bg-red-800 text-white px-8 py-6 text-lg shadow-lg"
+                    asChild
+                  >
+                    <a 
+                      href="https://www.ebay.com/str/Phoenix-Automotive"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-2"
                     >
-                      <a 
-                        href="https://www.ebay.com/str/Phoenix-Automotive"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center gap-2"
-                      >
-                        Shop eBay Store
-                        <ArrowRight className="h-4 w-4" />
-                      </a>
-                    </Button>
-                    <Button 
-                      variant="outline"
-                      className="w-full border-white bg-white/5 hover:bg-white/10 text-white"
-                      asChild
-                    >
-                      <Link to="/partsrequest" className="inline-flex items-center justify-center gap-2">
-                        Request Parts
-                        <ArrowRight className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                  </div>
-                )}
+                      Visit Our eBay Store
+                      <ArrowRight className="h-5 w-5" />
+                    </a>
+                  </Button>
+                </div>
               </div>
             </div>
           </ResponsiveContainer>

@@ -12,10 +12,12 @@ const Navbar = () => {
   const { isMobile, width } = useBreakpoint();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  // Memoized navigation handler
+  // Memoized navigation handler with scroll to top
   const handleNavigation = useCallback(() => {
     try {
       setIsDrawerOpen(false);
+      // Scroll to top when navigating
+      window.scrollTo(0, 0);
     } catch (error) {
       console.error('Error closing drawer:', error);
     }
@@ -117,7 +119,11 @@ const Navbar = () => {
         <nav className="container mx-auto px-4">
           <div className={`flex justify-between items-center ${isMobile ? 'h-[72px]' : 'h-[100px]'}`}>
             {/* Logo */}
-            <Link to="/" className="block">
+            <Link 
+              to="/" 
+              className="block" 
+              onClick={() => window.scrollTo(0, 0)}
+            >
               <img 
                 src="/images/phoenix-automotive-logo.svg" 
                 alt="Phoenix Automotive Group, Inc." 
