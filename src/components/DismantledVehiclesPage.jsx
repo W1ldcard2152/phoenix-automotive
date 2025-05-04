@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Clock, Wrench, Calendar, ArrowRight } from 'lucide-react';
+import { apiClient } from '../utils/apiClient';
 import { ResponsiveContainer, MobileDrawer } from '@/components/layout';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 
@@ -61,8 +62,13 @@ const DismantledVehiclesPage = () => {
         const data = await response.json();
         console.log('Received vehicle data:', data.dismantledVehicles.length);
         
-        // Only set dismantled vehicles from the batched response
-        setVehicles(data.dismantledVehicles);
+        // Sort the vehicles by dateAcquired, most recent first
+        const sortedVehicles = [...data.dismantledVehicles].sort((a, b) => {
+          return new Date(b.dateAcquired) - new Date(a.dateAcquired);
+        });
+        
+        // Set the sorted vehicles
+        setVehicles(sortedVehicles);
         setError(null);
       } catch (err) {
         // Don't set error for aborted requests
@@ -97,7 +103,6 @@ const DismantledVehiclesPage = () => {
     };
   }, []); // Empty dependency array ensures it only runs once on mount
 
-  // Rest of your component remains the same...
   const SidebarContent = () => (
     <div className="space-y-6">
       {/* eBay Store Card */}
