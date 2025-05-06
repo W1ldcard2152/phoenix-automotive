@@ -108,7 +108,7 @@ const Navbar = () => {
               <div className="flex justify-between items-center h-8">
                 <ContactInfo />
                 <div className="text-sm">
-                  Mon-Fri: 8am-5pm | Sat-Sun: Text Only
+                  Mon-Fri: 8am-5pm | Sat-Sun: Closed
                 </div>
               </div>
             </div>
@@ -190,7 +190,7 @@ const Navbar = () => {
                           <div className="pt-4">
                             <div className="font-medium">Hours:</div>
                             <div>Mon-Fri: 8am-5pm</div>
-                            <div>Sat-Sun: Text Only</div>
+                            <div>Sat-Sun: Closed</div>
                           </div>
                         </div>
                       </div>

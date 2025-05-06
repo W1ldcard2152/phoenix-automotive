@@ -9,6 +9,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import compression from 'compression';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -41,21 +42,26 @@ const corsOptions = {
 };
 
 // Apply CORS middleware
+app.use(compression());
 app.use(cors(corsOptions));
 
 // Enable pre-flight requests for all routes
+app.use(compression());
 app.options('*', cors(corsOptions));
 
 // Simplified middleware chain
+app.use(compression());
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} | ${req.method} ${req.url}`);
   next();
 });
 
 // Apply only the essential middleware
+app.use(compression());
 app.use(cookieParser);
 
 // CORS related headers
+app.use(compression());
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   
@@ -77,6 +83,7 @@ app.use((req, res, next) => {
 });
 
 // Body parsing middleware
+app.use(compression());
 app.use(express.json({
   limit: '10mb'
 }));

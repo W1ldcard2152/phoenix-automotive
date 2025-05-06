@@ -20,11 +20,15 @@ const VehicleGrid = ({ vehicles }) => {
         <Card key={vehicle._id} className="overflow-hidden">
           <Link to={`/inventory/${vehicle._id}`} className="block">
             <div className="relative h-56"> {/* Increased from h-48 to h-56 */}
-              <img 
-                src={vehicle.imageUrl || "/api/placeholder/400/300"} 
-                alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-                className="w-full h-full object-cover"
-              />
+            <img 
+              src={vehicle.imageUrl || "/api/placeholder/400/300"} 
+              alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
+              className="w-full h-full object-cover"
+              loading="lazy"
+              srcSet={`${vehicle.imageUrl || "/api/placeholder/400/300"} 400w, 
+                      ${vehicle.imageUrl || "/api/placeholder/800/600"} 800w`}
+              sizes="(max-width: 600px) 400px, 800px"
+            />
               <Badge 
                 className={`absolute top-2 right-2 ${
                   STATUS_COLORS[vehicle.status] || 'bg-gray-500'

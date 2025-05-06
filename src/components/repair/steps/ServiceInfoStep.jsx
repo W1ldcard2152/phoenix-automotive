@@ -131,10 +131,12 @@ const ServiceInfoStep = ({
         )}
       </div>
 
-      <div className="grid md:grid-cols-2 gap-4">
-        {/* Preferred Date */}
+      {/* Date and Urgency Fields with adjusted layout */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="preferredDate">Preferred Service Date (Optional)</Label>
+          <div className="h-12"> {/* Add a fixed-height container for the label */}
+            <Label htmlFor="preferredDate">Preferred Service Date (Leave blank for soonest available)</Label>
+          </div>
           <Input
             id="preferredDate"
             type="date"
@@ -144,9 +146,10 @@ const ServiceInfoStep = ({
           />
         </div>
 
-        {/* Urgency */}
         <div className="space-y-2">
-          <Label htmlFor="urgency">Service Urgency</Label>
+          <div className="h-12"> {/* Add a fixed-height container for the label */}
+            <Label htmlFor="urgency">Service Urgency</Label>
+          </div>
           <Select
             value={serviceInfo.urgency}
             onValueChange={(value) => handleSelectChange('urgency', value)}

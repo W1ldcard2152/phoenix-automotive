@@ -37,11 +37,15 @@ const DisVehicleCard = ({
   return (
     <Card className="overflow-hidden">
       <div className="relative h-48">
-        <img 
-          src={imageUrl || "/api/placeholder/400/300"} 
-          alt={`${year} ${make} ${model}`}
-          className="w-full h-full object-cover"
-        />
+      <img 
+        src={vehicle.imageUrl || "/api/placeholder/400/300"} 
+        alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
+        className="w-full h-full object-cover"
+        loading="lazy"
+        srcSet={`${vehicle.imageUrl || "/api/placeholder/400/300"} 400w, 
+                ${vehicle.imageUrl || "/api/placeholder/800/600"} 800w`}
+        sizes="(max-width: 600px) 400px, 800px"
+      />
         <Badge 
           className={`absolute top-2 right-2 ${statusColors[status] || 'bg-gray-500'}`}
         >
