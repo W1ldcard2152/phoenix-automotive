@@ -13,14 +13,18 @@ import AdminPage from './components/admin/AdminPage';
 import VehicleDetails from './components/VehicleDetails';
 import PartsRequestPage from './components/PartsRequestPage';
 import RepairServicesPage from './components/RepairServicesPage';
+import Footer from './components/Footer';
 import { Toaster } from "@/components/ui/toaster"
+import PrivacyPolicyPage from './components/PrivacyPolicyPage';
+import ScrollToTop from './components/ScrollToTop';
 
 function App() {
   return (
     <>
       <Toaster />
       <BrowserRouter>
-        <div className="min-h-screen bg-background">
+        <ScrollToTop />
+        <div className="min-h-screen bg-background flex flex-col">
           <Routes>
             {/* Public routes with navbar */}
             <Route path="/" element={<><Navbar /><Home /></>} />
@@ -31,6 +35,7 @@ function App() {
             <Route path="/inventory/:id" element={<><Navbar /><VehicleDetails /></>} />
             <Route path="/partsrequest" element={<><Navbar /><PartsRequestPage /></>} />
             <Route path="/repair" element={<><Navbar /><RepairServicesPage /></>} />
+            <Route path="/privacy-policy" element={<><Navbar /><PrivacyPolicyPage /></>} />
             
             {/* Login route (no navbar) */}
             <Route path="/login" element={<LoginPage />} />
@@ -45,6 +50,7 @@ function App() {
             {/* 404 route with navbar */}
             <Route path="*" element={<><Navbar /><NotFound /></>} />
           </Routes>
+          <Footer />
         </div>
       </BrowserRouter>
     </>
