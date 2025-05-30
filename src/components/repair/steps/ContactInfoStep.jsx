@@ -57,6 +57,12 @@ const ContactInfoStep = ({
       </div>
 
       {/* Phone & Email */}
+      <div className="space-y-2 mb-4">
+        <p className="text-sm text-muted-foreground">
+          Please provide at least one contact method (phone or email) so we can reach you.
+        </p>
+      </div>
+      
       <div className="grid md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="phone">Phone Number</Label>
@@ -65,7 +71,6 @@ const ContactInfoStep = ({
             value={customerInfo.phone}
             onChange={handlePhoneChange}
             placeholder="(555) 555-5555"
-            required
           />
           {getFieldError('phone') && (
             <Alert variant="destructive" className="mt-2">
@@ -83,7 +88,6 @@ const ContactInfoStep = ({
             value={customerInfo.email}
             onChange={handleInputChange('email')}
             placeholder="your.email@example.com"
-            required
           />
           {getFieldError('email') && (
             <Alert variant="destructive" className="mt-2">

@@ -10,15 +10,21 @@ const repairRequestSchema = new Schema({
     },
     phone: {
       type: String,
-      required: true,
+      required: false,
       trim: true
     },
     email: {
       type: String,
-      required: true,
+      required: false,
       trim: true,
       lowercase: true,
-      match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email']
+      validate: {
+        validator: function(v) {
+          // Only validate email format if email is provided
+          return !v || /^\S+@\S+\.\S+$/.test(v);
+        },
+        message: 'Please enter a valid email address'
+      }
     },
     address: {
       street: {
@@ -61,14 +67,20 @@ const repairRequestSchema = new Schema({
     trim: String,
     vin: {
       type: String,
-      required: true,
+      required: false,
       trim: true,
       uppercase: true,
-      length: 17
+      validate: {
+        validator: function(v) {
+          // Only validate length if VIN is provided
+          return !v || v.length === 17;
+        },
+        message: 'VIN must be exactly 17 characters if provided'
+      }
     },
     mileage: {
       type: Number,
-      required: true,
+      required: false,
       min: 0
     },
     engineSize: String
@@ -89,6 +101,7 @@ const repairRequestSchema = new Schema({
         'AC/Heating Service',
         'Scheduled Maintenance',
         'State Inspection',
+        'General Repair',
         'Other'
       ]
     },
@@ -139,9 +152,20 @@ const repairRequestSchema = new Schema({
   timestamps: true
 });
 
-// Add logging middleware
+// Add validation to ensure at least one contact method is provided
 repairRequestSchema.pre('save', function(next) {
   console.log('Saving repair request:', this.toObject());
+  
+  // Ensure at least one contact method (phone or email) is provided
+  const hasPhone = this.customerInfo.phone && this.customerInfo.phone.trim() !== '';
+  const hasEmail = this.customerInfo.email && this.customerInfo.email.trim() !== '';
+  
+  if (!hasPhone && !hasEmail) {
+    const error = new Error('At least one contact method (phone or email) is required');
+    error.name = 'ValidationError';
+    return next(error);
+  }
+  
   next();
 });
 

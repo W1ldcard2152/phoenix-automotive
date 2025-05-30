@@ -23,6 +23,7 @@ const serviceTypes = [
   'AC/Heating Service',
   'Scheduled Maintenance',
   'State Inspection',
+  'General Repair',
   'Other'
 ];
 

@@ -195,14 +195,23 @@ const validateContactInfo = (customerInfo) => {
   
   if (!customerInfo.name) errors.name = 'Name is required';
   
-  if (!customerInfo.phone) errors.phone = 'Phone number is required';
-  else if (!/^\(\d{3}\) \d{3}-\d{4}$/.test(customerInfo.phone)) {
-    errors.phone = 'Please enter a valid phone number';
-  }
+  // Require at least one contact method (phone or email)
+  const hasPhone = customerInfo.phone && customerInfo.phone.trim() !== '';
+  const hasEmail = customerInfo.email && customerInfo.email.trim() !== '';
   
-  if (!customerInfo.email) errors.email = 'Email is required';
-  else if (!/^\S+@\S+\.\S+$/.test(customerInfo.email)) {
-    errors.email = 'Please enter a valid email';
+  if (!hasPhone && !hasEmail) {
+    errors.phone = 'Please provide either a phone number or email address';
+    errors.email = 'Please provide either a phone number or email address';
+  } else {
+    // Validate phone format only if phone is provided
+    if (hasPhone && !/^\(\d{3}\) \d{3}-\d{4}$/.test(customerInfo.phone)) {
+      errors.phone = 'Please enter a valid phone number format: (555) 555-5555';
+    }
+    
+    // Validate email format only if email is provided
+    if (hasEmail && !/^\S+@\S+\.\S+$/.test(customerInfo.email)) {
+      errors.email = 'Please enter a valid email address';
+    }
   }
   
   return errors;
@@ -343,19 +352,37 @@ const RepairRequestForm = ({ onCancel }) => {
       const { vehicleInfo, serviceInfo, customerInfo } = state;
       
       // Prepare data for API
+      const vehicleData = {
+        year: parseInt(vehicleInfo.year),
+        make: vehicleInfo.make,
+        model: vehicleInfo.model
+      };
+      
+      // Only add optional fields if they have values
+      if (vehicleInfo.trim && vehicleInfo.trim.trim() !== '') {
+        vehicleData.trim = vehicleInfo.trim;
+      }
+      if (vehicleInfo.vin && vehicleInfo.vin.trim() !== '') {
+        vehicleData.vin = vehicleInfo.vin.trim().toUpperCase();
+      }
+      if (vehicleInfo.mileage && vehicleInfo.mileage.toString().trim() !== '') {
+        vehicleData.mileage = parseInt(vehicleInfo.mileage);
+      }
+      if (vehicleInfo.engineSize && vehicleInfo.engineSize.trim() !== '') {
+        vehicleData.engineSize = vehicleInfo.engineSize;
+      }
+      
       const formattedData = {
         customerInfo: {
           ...customerInfo
         },
-        vehicleInfo: {
-          ...vehicleInfo,
-          year: parseInt(vehicleInfo.year),
-          mileage: vehicleInfo.mileage ? parseInt(vehicleInfo.mileage) : 0  // Add a default or condition here
-        },
+        vehicleInfo: vehicleData,
         serviceInfo: {
           ...serviceInfo
         }
       };
+      
+      console.log('Submitting repair request data:', formattedData);
       
       // Submit to API
       await apiClient.repairRequests.create(formattedData);
