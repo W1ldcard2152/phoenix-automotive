@@ -25,97 +25,15 @@ const repairRequestSchema = new Schema({
         },
         message: 'Please enter a valid email address'
       }
-    },
-    address: {
-      street: {
-        type: String,
-        trim: true
-      },
-      city: {
-        type: String,
-        trim: true
-      },
-      state: {
-        type: String,
-        trim: true
-      },
-      zipCode: {
-        type: String,
-        trim: true
-      }
     }
   },
   
-  // Vehicle Information
-  vehicleInfo: {
-    year: {
-      type: Number,
-      required: true,
-      min: 1900,
-      max: new Date().getFullYear() + 1
-    },
-    make: {
-      type: String,
-      required: true,
-      trim: true
-    },
-    model: {
-      type: String,
-      required: true,
-      trim: true
-    },
-    trim: String,
-    vin: {
-      type: String,
-      required: false,
-      trim: true,
-      uppercase: true,
-      validate: {
-        validator: function(v) {
-          // Only validate length if VIN is provided
-          return !v || v.length === 17;
-        },
-        message: 'VIN must be exactly 17 characters if provided'
-      }
-    },
-    mileage: {
-      type: Number,
-      required: false,
-      min: 0
-    },
-    engineSize: String
-  },
-  
-  // Service Information
+  // Service Information - Simplified
   serviceInfo: {
-    serviceType: {
-      type: String,
-      required: true,
-      enum: [
-        'Diagnostic',
-        'Engine Repair',
-        'Transmission Repair',
-        'Brake Service',
-        'Suspension Work',
-        'Electrical Repair',
-        'AC/Heating Service',
-        'Scheduled Maintenance',
-        'State Inspection',
-        'General Repair',
-        'Other'
-      ]
-    },
-    otherServiceType: {
-      type: String,
-      trim: true
-    },
-    description: {
+    message: {
       type: String,
       required: true,
       trim: true
-    },
-    preferredDate: {
-      type: Date
     },
     urgency: {
       type: String,
@@ -127,7 +45,7 @@ const repairRequestSchema = new Schema({
   // Request Status
   status: {
     type: String,
-    enum: ['pending', 'scheduled', 'in_progress', 'completed', 'cancelled'],
+    enum: ['pending', 'scheduled', 'in_progress', 'completed', 'cancelled', 'archived'],
     default: 'pending'
   },
   
@@ -147,7 +65,20 @@ const repairRequestSchema = new Schema({
       type: Date,
       default: Date.now
     }
-  }]
+  }],
+  
+  // Archive functionality
+  isArchived: {
+    type: Boolean,
+    default: false
+  },
+  archivedAt: {
+    type: Date
+  },
+  archivedBy: {
+    type: String,
+    trim: true
+  }
 }, {
   timestamps: true
 });
@@ -168,6 +99,24 @@ repairRequestSchema.pre('save', function(next) {
   
   next();
 });
+
+// Archive middleware
+repairRequestSchema.methods.archive = function(archivedBy) {
+  this.isArchived = true;
+  this.archivedAt = new Date();
+  this.archivedBy = archivedBy || 'Admin';
+  this.status = 'archived';
+  return this.save();
+};
+
+// Unarchive middleware
+repairRequestSchema.methods.unarchive = function() {
+  this.isArchived = false;
+  this.archivedAt = undefined;
+  this.archivedBy = undefined;
+  this.status = 'pending';
+  return this.save();
+};
 
 repairRequestSchema.pre('findOneAndUpdate', function() {
   console.log('Update query:', this.getQuery());

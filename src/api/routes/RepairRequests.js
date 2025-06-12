@@ -8,12 +8,10 @@ const router = Router();
 router.post('/', async (req, res) => {
   try {
     console.log('Creating new repair request with data:', req.body);
-    const {
-      customerInfo, vehicleInfo, serviceInfo
-    } = req.body;
+    const { customerInfo, serviceInfo } = req.body;
 
     // Validate required fields
-    if (!customerInfo || !vehicleInfo || !serviceInfo) {
+    if (!customerInfo || !serviceInfo) {
       return res.status(400).json({
         error: 'Missing required information'
       });
@@ -21,7 +19,6 @@ router.post('/', async (req, res) => {
 
     const repairRequest = new RepairRequestModel.RepairRequest({
       customerInfo,
-      vehicleInfo,
       serviceInfo,
       status: 'pending' // Set initial status
     });
@@ -44,8 +41,13 @@ router.post('/', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     console.log('Fetching repair requests with filters:', req.query);
-    const { status, dateFrom, dateTo } = req.query;
+    const { status, dateFrom, dateTo, includeArchived } = req.query;
     let query = {};
+    
+    // By default, exclude archived requests unless specifically requested
+    if (includeArchived !== 'true') {
+      query.isArchived = { $ne: true };
+    }
     
     if (status) {
       query.status = status;
@@ -189,7 +191,7 @@ router.patch('/:id/status', async (req, res) => {
 
     const { status } = req.body;
     
-    if (!status || !['pending', 'scheduled', 'in_progress', 'completed', 'cancelled'].includes(status)) {
+    if (!status || !['pending', 'scheduled', 'in_progress', 'completed', 'cancelled', 'archived'].includes(status)) {
       return res.status(400).json({
         error: 'Invalid status provided'
       });
@@ -226,7 +228,115 @@ router.patch('/:id/status', async (req, res) => {
   }
 });
 
-// Delete a repair request
+// Update the urgency of a repair request
+router.patch('/:id/urgency', async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        error: 'Invalid request ID format'
+      });
+    }
+
+    const { urgency } = req.body;
+    
+    if (!urgency || !['Low', 'Medium', 'High', 'Emergency'].includes(urgency)) {
+      return res.status(400).json({
+        error: 'Invalid urgency level provided'
+      });
+    }
+    
+    const request = await RepairRequestModel.RepairRequest.findByIdAndUpdate(
+      req.params.id,
+      { 
+        $set: { 'serviceInfo.urgency': urgency },
+        $push: {
+          notes: {
+            content: `Urgency level updated to ${urgency}`,
+            author: 'SYSTEM',
+            timestamp: new Date()
+          }
+        }
+      },
+      { new: true }
+    );
+
+    if (!request) {
+      return res.status(404).json({
+        error: 'Repair request not found'
+      });
+    }
+
+    console.log('Urgency updated for repair request:', request._id);
+    res.json(request);
+  } catch (error) {
+    console.error('Error updating repair request urgency:', error);
+    res.status(400).json({
+      error: error.message
+    });
+  }
+});
+
+// Archive a repair request
+router.patch('/:id/archive', async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        error: 'Invalid request ID format'
+      });
+    }
+
+    const { archivedBy } = req.body;
+    
+    const request = await RepairRequestModel.RepairRequest.findById(req.params.id);
+    
+    if (!request) {
+      return res.status(404).json({
+        error: 'Repair request not found'
+      });
+    }
+
+    await request.archive(archivedBy || 'Admin');
+
+    console.log('Repair request archived:', request._id);
+    res.json(request);
+  } catch (error) {
+    console.error('Error archiving repair request:', error);
+    res.status(400).json({
+      error: error.message
+    });
+  }
+});
+
+// Unarchive a repair request
+router.patch('/:id/unarchive', async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        error: 'Invalid request ID format'
+      });
+    }
+    
+    const request = await RepairRequestModel.RepairRequest.findById(req.params.id);
+    
+    if (!request) {
+      return res.status(404).json({
+        error: 'Repair request not found'
+      });
+    }
+
+    await request.unarchive();
+
+    console.log('Repair request unarchived:', request._id);
+    res.json(request);
+  } catch (error) {
+    console.error('Error unarchiving repair request:', error);
+    res.status(400).json({
+      error: error.message
+    });
+  }
+});
+
+// Delete a repair request (permanent delete)
 router.delete('/:id', async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -243,9 +353,9 @@ router.delete('/:id', async (req, res) => {
       });
     }
 
-    console.log('Repair request deleted:', req.params.id);
+    console.log('Repair request permanently deleted:', req.params.id);
     res.json({
-      message: 'Repair request deleted successfully',
+      message: 'Repair request permanently deleted',
       request
     });
   } catch (error) {

@@ -16,6 +16,7 @@ import RepairServicesPage from './components/RepairServicesPage';
 import Footer from './components/Footer';
 import { Toaster } from "@/components/ui/toaster"
 import PrivacyPolicyPage from './components/PrivacyPolicyPage';
+import PartsMatrix from './components/PartsMatrix';
 import ScrollToTop from './components/ScrollToTop';
 
 function App() {
@@ -36,6 +37,9 @@ function App() {
             <Route path="/partsrequest" element={<><Navbar /><PartsRequestPage /></>} />
             <Route path="/repair" element={<><Navbar /><RepairServicesPage /></>} />
             <Route path="/privacy-policy" element={<><Navbar /><PrivacyPolicyPage /></>} />
+            
+            {/* Hidden compliance page - no navbar */}
+            <Route path="/partsmatrix" element={<PartsMatrix />} />
             
             {/* Login route (no navbar) */}
             <Route path="/login" element={<LoginPage />} />
