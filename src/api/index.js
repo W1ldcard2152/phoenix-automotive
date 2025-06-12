@@ -11,6 +11,7 @@ import partRequestsRouter from './routes/PartRequests.js';
 import repairRequestsRouter from './routes/RepairRequests.js';
 import vinValidationRouter from './routes/validateVin.js';
 import authRouter from './routes/Auth.js';
+import ebayComplianceRouter from './routes/EbayCompliance.js'; // NEW IMPORT
 import { authenticateToken } from './middleware/auth.js';
 import { csrfProtection } from './middleware/csrf.js';
 import { securityHeaders, rateLimit } from './middleware/security.js';
@@ -82,12 +83,14 @@ router.use(rateLimit);
 // Mount routes
 console.log('Mounting routes...');
 
+// eBay compliance endpoint - must be BEFORE other middleware that might interfere
+// This endpoint needs to be accessible without authentication or CSRF protection
+router.use('/partsmatrix', ebayComplianceRouter);
+
 // Public routes
 router.use('/vehicle-data', vehicleDataRouter);
 router.use('/auth', csrfProtection, authRouter);
 router.use('/vin', vinValidationRouter);
-// Remove this line which is causing the error
-// app.use('/api/vin', vinValidationRouter);
 
 // Modified route handling for dismantled vehicles - public GET access
 router.get('/dismantled-vehicles', async (req, res, next) => {
