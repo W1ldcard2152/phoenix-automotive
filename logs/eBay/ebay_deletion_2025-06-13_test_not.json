@@ -1,0 +1,31 @@
+{
+  "timestamp": "2025-06-13T03:37:22.306Z",
+  "notificationId": "test_notification_1749785842302",
+  "username": "test_user_1749785842303",
+  "userId": "test_user_id_7hnptl",
+  "eiasToken": "test_eias_token_3c6ol",
+  "eventDate": "2025-06-13T03:37:22.302Z",
+  "publishDate": "2025-06-13T03:37:22.303Z",
+  "publishAttemptCount": 1,
+  "processed": true,
+  "processedDate": "2025-06-13T03:37:22.306Z",
+  "deletedDataSummary": "Checked for eBay user-specific data in automotive parts database - none found",
+  "rawPayload": {
+    "metadata": {
+      "topic": "MARKETPLACE_ACCOUNT_DELETION",
+      "schemaVersion": "1.0",
+      "deprecated": false
+    },
+    "notification": {
+      "notificationId": "test_notification_1749785842302",
+      "eventDate": "2025-06-13T03:37:22.302Z",
+      "publishDate": "2025-06-13T03:37:22.303Z",
+      "publishAttemptCount": 1,
+      "data": {
+        "username": "test_user_1749785842303",
+        "userId": "test_user_id_7hnptl",
+        "eiasToken": "test_eias_token_3c6ol"
+      }
+    }
+  }
+}
