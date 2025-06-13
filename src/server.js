@@ -2,9 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import router from './api/index.js';
 import connectDB from './api/config/db.js';
-import { securityHeaders, rateLimit } from './api/middleware/security.js';
-import { secureCookies, cookieParser } from './api/middleware/cookies.js';
-import { csrfProtection, setCsrfToken } from './api/middleware/csrf.js';
+import { cookieParser } from './api/middleware/cookies.js';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
@@ -18,119 +16,143 @@ dotenv.config();
 
 const app = express();
 
-// CORS configuration for eBay
-app.use(cors({
-    origin: function (origin, callback) {
-        // Allow eBay and your own domains
-        const allowedOrigins = [
-            'https://developer.ebay.com',
-            'https://api.ebay.com',
-            'https://phxautogroup.com',
-            'https://www.phxautogroup.com',
-            // Add your other domains
-        ];
-        
-        // Allow no origin (for server-to-server requests like eBay's)
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(null, true); // Be permissive for eBay compliance
-        }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-}));
+// Trust proxy (important for production behind load balancers)
+app.set('trust proxy', 1);
 
-// Security headers (but allow eBay access)
-app.use(helmet({
-    crossOriginEmbedderPolicy: false,
-    contentSecurityPolicy: false, // Disable CSP for eBay compatibility
-}));
+// CORS Configuration - Simplified and eBay-friendly
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow eBay and your own domains
+    const allowedOrigins = [
+      'https://developer.ebay.com',
+      'https://api.ebay.com',
+      'https://phxautogroup.com',
+      'https://www.phxautogroup.com',
+      process.env.FRONTEND_URL,
+    ].filter(Boolean);
+    
+    // Allow no origin (for server-to-server requests like eBay's)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Be permissive for eBay compliance
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With', 
+    'Accept', 
+    'Origin', 
+    'Cache-Control'
+  ],
+  maxAge: 86400 // 24 hours
+};
 
-// Simplified middleware chain
+// Apply middleware in correct order
 app.use(compression());
+app.use(cors(corsOptions));
+
+// Logging middleware
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} | ${req.method} ${req.url}`);
   next();
 });
 
-// Apply only the essential middleware
-app.use(compression());
-app.use(cookieParser);
-
-// Parse JSON bodies
+// Body parsing middleware
 app.use(express.json({
-    limit: '10mb',
-    verify: (req, res, buf) => {
-        // Store raw body for webhook signature verification if needed
-        req.rawBody = buf;
-    }
+  limit: '10mb',
+  verify: (req, res, buf) => {
+    // Store raw body for webhook signature verification if needed
+    req.rawBody = buf;
+  }
 }));
 
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(cookieParser);
 
-// Health check endpoint (make sure this works first)
-app.get('/api/health', (req, res) => {
-    res.json({
-        status: 'OK',
-        timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV,
-        ebayConfig: {
-            hasToken: !!process.env.EBAY_VERIFICATION_TOKEN,
-            endpointUrl: process.env.EBAY_ENDPOINT_URL
-        }
-    });
-});
-
-// Health check route
+// Health check routes
 app.get('/healthz', (req, res) => {
-  const health = {
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    timestamp: Date.now(),
-    status: 'OK'
-  };
-  res.status(200).json(health);
+    environment: process.env.NODE_ENV,
+    ebayConfig: {
+      hasToken: !!process.env.EBAY_VERIFICATION_TOKEN,
+      endpointUrl: process.env.EBAY_ENDPOINT_URL
+    }
+  });
 });
 
-// Your eBay compliance routes
-import ebayRoutes from './api/routes/EbayCompliance.js';
-app.use('/api/partsmatrix', ebayRoutes);
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+    ebayConfig: {
+      hasToken: !!process.env.EBAY_VERIFICATION_TOKEN,
+      endpointUrl: process.env.EBAY_ENDPOINT_URL
+    }
+  });
+});
 
-// API routes
+// API routes (must come before static file serving)
 app.use('/api', router);
 
-// Log the environment
-console.log('Current NODE_ENV:', process.env.NODE_ENV);
-
-// Static file serving with enhanced caching and mime types
+// Static file serving for production
 if (process.env.NODE_ENV === 'production') {
-  // Log the static file path
-  console.log('Serving static files from:', path.join(__dirname, '../dist'));
+  const distPath = path.join(__dirname, '../dist');
   
-  // Add proper MIME type handling for JavaScript and CSS files
-  app.use(express.static(path.join(__dirname, '../dist'), {
-    maxAge: '1y',
+  console.log('Production mode: serving static files from:', distPath);
+  
+  // Check if dist directory exists
+  if (!fs.existsSync(distPath)) {
+    console.error('ERROR: dist directory not found at:', distPath);
+    console.log('Available directories:', fs.readdirSync(__dirname));
+  }
+  
+  // Serve static files with proper caching
+  app.use(express.static(distPath, {
+    maxAge: process.env.NODE_ENV === 'production' ? '1y' : '0',
     etag: true,
     lastModified: true,
     setHeaders: (res, filePath) => {
-      // Set correct Content-Type header for different file types
-      if (filePath.endsWith('.js')) {
-        res.set('Content-Type', 'application/javascript; charset=UTF-8');
-      } else if (filePath.endsWith('.css')) {
-        res.set('Content-Type', 'text/css; charset=UTF-8');
-      } else if (filePath.endsWith('.json')) {
-        res.set('Content-Type', 'application/json; charset=UTF-8');
-      } else if (filePath.endsWith('.svg')) {
-        res.set('Content-Type', 'image/svg+xml');
-      } else if (filePath.endsWith('.png')) {
-        res.set('Content-Type', 'image/png');
-      } else if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) {
-        res.set('Content-Type', 'image/jpeg');
+      // Set correct MIME types
+      const ext = path.extname(filePath).toLowerCase();
+      
+      switch (ext) {
+        case '.js':
+          res.set('Content-Type', 'application/javascript; charset=UTF-8');
+          break;
+        case '.css':
+          res.set('Content-Type', 'text/css; charset=UTF-8');
+          break;
+        case '.json':
+          res.set('Content-Type', 'application/json; charset=UTF-8');
+          break;
+        case '.svg':
+          res.set('Content-Type', 'image/svg+xml');
+          break;
+        case '.png':
+          res.set('Content-Type', 'image/png');
+          break;
+        case '.jpg':
+        case '.jpeg':
+          res.set('Content-Type', 'image/jpeg');
+          break;
+        case '.woff':
+          res.set('Content-Type', 'font/woff');
+          break;
+        case '.woff2':
+          res.set('Content-Type', 'font/woff2');
+          break;
       }
       
       // Set caching headers
-      if (filePath.includes('/assets/')) {
+      if (filePath.includes('/assets/') || ext === '.js' || ext === '.css') {
         res.set('Cache-Control', 'public, max-age=31536000, immutable');
       } else {
         res.set('Cache-Control', 'public, max-age=86400');
@@ -138,259 +160,155 @@ if (process.env.NODE_ENV === 'production') {
     }
   }));
 
-  // Handle direct requests to asset files with proper MIME types
-  app.get('/assets/*', (req, res, next) => {
-    // Try to send the file from the dist directory
-    const filePath = path.join(__dirname, '../dist', req.path);
-    console.log('Looking for asset file at:', filePath);
-    
-    // Check if file exists
-    try {
-      if (fs.existsSync(filePath)) {
-        // Determine content type based on file extension
-        const ext = path.extname(filePath).toLowerCase();
-        let contentType = 'application/octet-stream';
-        
-        switch (ext) {
-          case '.js':
-            contentType = 'application/javascript; charset=UTF-8';
-            break;
-          case '.css':
-            contentType = 'text/css; charset=UTF-8';
-            break;
-          case '.json':
-            contentType = 'application/json; charset=UTF-8';
-            break;
-          case '.png':
-            contentType = 'image/png';
-            break;
-          case '.jpg':
-          case '.jpeg':
-            contentType = 'image/jpeg';
-            break;
-          case '.svg':
-            contentType = 'image/svg+xml';
-            break;
-          case '.woff':
-            contentType = 'font/woff';
-            break;
-          case '.woff2':
-            contentType = 'font/woff2';
-            break;
-          case '.ttf':
-            contentType = 'font/ttf';
-            break;
-          case '.eot':
-            contentType = 'application/vnd.ms-fontobject';
-            break;
-        }
-        
-        res.set('Content-Type', contentType);
-        return res.sendFile(filePath, {
-          maxAge: '1y',
-          headers: {
-            'Cache-Control': 'public, max-age=31536000, immutable'
-          }
-        });
-      }
-    } catch (err) {
-      console.error('Error checking for asset file:', err);
-    }
-    
-    // If we get here, the file wasn't found or had an error
-    next();
-  });
-
-  // Additional middleware for ensuring MIME types are set correctly
-  app.use((req, res, next) => {
-    // Make sure appropriate content types are set for all asset files
-    if (req.path.includes('/assets/')) {
-      const ext = path.extname(req.path).toLowerCase();
-      if (ext === '.js') {
-        res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
-      } else if (ext === '.css') {
-        res.setHeader('Content-Type', 'text/css; charset=UTF-8');
-      } else if (ext === '.map') {
-        res.setHeader('Content-Type', 'application/json; charset=UTF-8');
-      }
-    }
-    next();
-  });
-
-  // Handle specific CSS and JS files that are causing issues
-  app.get('*/index.*.js', (req, res) => {
-    const jsPath = path.join(__dirname, '../dist', req.path);
-    if (fs.existsSync(jsPath)) {
-      res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
-      res.sendFile(jsPath);
-    } else {
-      res.status(404).send('File not found');
-    }
-  });
-
-  app.get('*/index.*.css', (req, res) => {
-    const cssPath = path.join(__dirname, '../dist', req.path);
-    if (fs.existsSync(cssPath)) {
-      res.setHeader('Content-Type', 'text/css; charset=UTF-8');
-      res.sendFile(cssPath);
-    } else {
-      res.status(404).send('File not found');
-    }
-  });
-
-  // Handle all client-side routes - serve index.html
-  // This is CRITICAL for React Router to work correctly
-  app.get('*', (req, res, next) => {
-    // Skip API routes
+  // Handle client-side routing - serve index.html for non-API routes
+  app.get('*', (req, res) => {
+    // Skip API routes (should already be handled above)
     if (req.path.startsWith('/api')) {
-      return next();
+      return res.status(404).json({ error: 'API endpoint not found' });
     }
 
-    // Skip asset files
-    if (req.path.startsWith('/assets')) {
-      return next();
-    }
-
-    // Skip static asset files
+    // Skip if file extension suggests it's a static asset
     if (req.path.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|json|map|txt|xml|pdf|woff|woff2|ttf|eot)$/)) {
-      return next();
+      return res.status(404).send('File not found');
     }
 
-    // For all other routes, serve index.html
-    console.log('Serving index.html for path:', req.path);
+    // Serve index.html for client-side routes
+    const indexPath = path.join(distPath, 'index.html');
     
-    const indexPath = path.join(__dirname, '../dist/index.html');
-    res.sendFile(indexPath, (err) => {
-      if (err) {
-        console.error('Error serving index.html:', err);
-        res.status(500).send('Error loading application');
-      }
-    });
-  });
-  
-  // Fallback handler to ensure all routes return index.html
-  app.use((req, res, next) => {
-    // If we've reached this point, and it's not an API or asset request
-    if (!res.headersSent && !req.path.startsWith('/api') && !req.path.startsWith('/assets')) {
-      console.log('Fallback handler serving index.html for:', req.path);
-      const indexPath = path.join(__dirname, '../dist/index.html');
-      res.sendFile(indexPath, {
-        maxAge: '1d',
-        headers: {
-          'Cache-Control': 'public, max-age=86400'
-        }
-      }, (err) => {
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath, (err) => {
         if (err) {
-          console.error('Error in fallback handler:', err);
-          // Don't return a 404, this might be a valid client route
-          res.status(200).send('<!DOCTYPE html><html><head><title>Phoenix Automotive</title></head><body><div>Loading...</div></body></html>');
+          console.error('Error serving index.html:', err);
+          res.status(500).send('Error loading application');
         }
       });
     } else {
-      next();
+      console.error('index.html not found at:', indexPath);
+      res.status(500).send('Application not found');
     }
   });
+  
 } else {
+  // Development mode
   app.get('/', (req, res) => {
-    res.send('Phoenix Automotive API');
+    res.json({
+      message: 'Phoenix Automotive API - Development Mode',
+      timestamp: new Date().toISOString(),
+      endpoints: {
+        health: '/api/health',
+        ebayCompliance: '/api/partsmatrix'
+      }
+    });
   });
 }
 
-// Comprehensive error handling middleware
+// Error handling middleware
 app.use((err, req, res, next) => {
-  const errorResponse = {
-    timestamp: new Date().toISOString(),
+  console.error('Server error:', {
+    error: err.message,
+    stack: err.stack,
     path: req.path,
     method: req.method,
-    error: err.name || 'Error',
-    message: err.message || 'An unexpected error occurred',
-    details: null,
-    requestId: req.id,
-    userAgent: req.get('user-agent'),
-    browser: req.get('sec-ch-ua')
-  };
-
-  // Log all errors in any environment if they're 500s
-  if (err.status === 500 || !err.status) {
-    console.error('Server Error:', {
-      ...errorResponse,
-      stack: err.stack,
-      headers: req.headers,
-      query: req.query,
-      params: req.params
-    });
-  }
+    timestamp: new Date().toISOString()
+  });
 
   if (res.headersSent) {
     return next(err);
   }
 
+  const errorResponse = {
+    timestamp: new Date().toISOString(),
+    path: req.path,
+    method: req.method,
+    error: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message
+  };
+
   // Handle specific error types
-  switch (err.name) {
-    case 'ValidationError':
-      errorResponse.details = err.errors;
-      return res.status(400).json(errorResponse);
-    
-    case 'CastError':
-      errorResponse.message = 'Invalid ID format';
-      return res.status(400).json(errorResponse);
-    
-    case 'MongoError':
-      if (err.code === 11000) {
-        errorResponse.message = 'Duplicate key error';
-        return res.status(409).json(errorResponse);
-      }
-      break;
-    
-    case 'SyntaxError':
-      if (err.status === 400) {
-        errorResponse.message = 'Invalid request syntax';
-        return res.status(400).json(errorResponse);
-      }
-      break;
+  if (err.name === 'ValidationError') {
+    return res.status(400).json({ ...errorResponse, details: err.errors });
+  }
+  
+  if (err.name === 'CastError') {
+    return res.status(400).json({ ...errorResponse, error: 'Invalid ID format' });
+  }
+  
+  if (err.code === 11000) {
+    return res.status(409).json({ ...errorResponse, error: 'Duplicate key error' });
   }
 
-  return res.status(err.status || 500).json(errorResponse);
+  res.status(err.status || 500).json(errorResponse);
 });
 
-// Fallback error handler for uncaught errors
+// 404 handler for unmatched routes
+app.use('*', (req, res) => {
+  console.log(`404 - Route not found: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({ 
+    error: 'Not found',
+    path: req.originalUrl,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Graceful error handling
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
+  process.exit(1);
 });
 
 process.on('unhandledRejection', (error) => {
   console.error('Unhandled Rejection:', error);
+  process.exit(1);
 });
 
-// Connect to MongoDB with enhanced error handling
+// Connect to MongoDB
 connectDB()
   .then(() => {
-    console.log('Database connection established');
+    console.log('✅ Database connection established');
   })
   .catch(err => {
-    console.error('Fatal: Database connection failed:', err);
+    console.error('❌ Database connection failed:', err);
     process.exit(1);
   });
 
-// Start server with enhanced error handling
+// Start server
 const PORT = process.env.PORT || 3000;
-const server = app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📊 Environment: ${process.env.NODE_ENV}`);
+  console.log(`🔗 eBay endpoint: ${process.env.EBAY_ENDPOINT_URL || 'Not configured'}`);
+  
   if (process.env.NODE_ENV !== 'production') {
-    console.log(`API available at http://localhost:${PORT}`);
+    console.log(`🌐 API available at http://localhost:${PORT}`);
+    console.log(`💚 Health check: http://localhost:${PORT}/api/health`);
   }
 }).on('error', (error) => {
-  console.error('Server failed to start:', error);
+  console.error('❌ Server failed to start:', error);
+  
+  if (error.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use`);
+  }
+  
   process.exit(1);
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received. Shutting down gracefully...');
+const gracefulShutdown = (signal) => {
+  console.log(`\n${signal} received. Shutting down gracefully...`);
+  
   server.close(() => {
-    console.log('Server closed');
+    console.log('✅ Server closed');
     process.exit(0);
   });
-});
+  
+  // Force close after 10 seconds
+  setTimeout(() => {
+    console.log('❌ Force closing server');
+    process.exit(1);
+  }, 10000);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 export default app;
