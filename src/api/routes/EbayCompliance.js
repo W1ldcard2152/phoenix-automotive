@@ -33,20 +33,34 @@ function getEbayConfig() {
     };
 }
 
-// eBay-specific middleware for proper header handling
+// eBay-specific middleware for proper header handling and authentication bypass
 router.use((req, res, next) => {
     console.log(`[EbayMiddleware] Processing ${req.method} ${req.path}`);
+    console.log(`[EbayMiddleware] Headers:`, {
+        userAgent: req.headers['user-agent'],
+        contentType: req.headers['content-type'],
+        authorization: req.headers['authorization'] ? 'present' : 'missing',
+        host: req.headers.host,
+        origin: req.headers.origin,
+        referer: req.headers.referer,
+        'x-ebay-signature': req.headers['x-ebay-signature'] ? 'present' : 'missing',
+        'x-ebay-timestamp': req.headers['x-ebay-timestamp'] ? 'present' : 'missing'
+    });
     
     // Set CORS headers for eBay API compatibility
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, X-EBAY-SIGNATURE, X-EBAY-TIMESTAMP');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, X-EBAY-SIGNATURE, X-EBAY-TIMESTAMP, User-Agent, Accept, Accept-Encoding, Cache-Control, Connection');
     
     // Set proper content type and cache headers for all JSON responses
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
+    
+    // Remove any authentication requirements for eBay requests
+    // This ensures no 401 errors from auth middleware
+    delete req.headers.authorization;
     
     console.log(`[EbayMiddleware] Headers set for ${req.method} ${req.path}`);
     
@@ -60,7 +74,8 @@ router.use((req, res, next) => {
         userAgent: req.headers['user-agent'],
         contentType: req.headers['content-type'],
         hasSignature: !!req.headers['x-ebay-signature'],
-        hasChallenge: !!req.query.challenge_code
+        hasChallenge: !!req.query.challenge_code,
+        remoteIP: req.ip || req.connection.remoteAddress
     });
     
     next();
@@ -235,6 +250,11 @@ router.get('/', (req, res) => {
     const challengeCode = req.query.challenge_code;
     const config = getEbayConfig(); // Get fresh config
 
+    // Immediately set response headers to ensure eBay compatibility
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'no-cache');
+
     // Log the incoming request for debugging
     console.log('eBay challenge request received:', {
         challengeCode: challengeCode ? challengeCode.substring(0, 10) + '...' : 'missing',
@@ -242,27 +262,34 @@ router.get('/', (req, res) => {
         ip: req.ip || req.connection.remoteAddress,
         timestamp: new Date().toISOString(),
         configEndpoint: config.endpointUrl, // Log the actual config being used
+        method: req.method,
+        fullUrl: req.protocol + '://' + req.get('host') + req.originalUrl,
         headers: {
             'accept': req.headers.accept,
             'content-type': req.headers['content-type'],
-            'host': req.headers.host
+            'host': req.headers.host,
+            'connection': req.headers.connection,
+            'accept-encoding': req.headers['accept-encoding']
         }
     });
 
     if (!challengeCode) {
         console.error('No challenge_code parameter in GET request');
-        return res.status(400).json({ error: 'Missing challenge_code parameter' });
+        const errorResponse = { error: 'Missing challenge_code parameter' };
+        return res.status(400).json(errorResponse);
     }
 
     // Validate challenge code format (basic sanity check)
     if (challengeCode.length < 3 || challengeCode.length > 500) {
         console.error('Invalid challenge_code format:', challengeCode.length, 'characters');
-        return res.status(400).json({ error: 'Invalid challenge_code format' });
+        const errorResponse = { error: 'Invalid challenge_code format' };
+        return res.status(400).json(errorResponse);
     }
 
     if (!config.verificationToken) {
         console.error('No EBAY_VERIFICATION_TOKEN configured');
-        return res.status(500).json({ error: 'Configuration not found' });
+        const errorResponse = { error: 'Configuration not found' };
+        return res.status(500).json(errorResponse);
     }
 
     try {
@@ -270,7 +297,10 @@ router.get('/', (req, res) => {
         const hashInput = challengeCode + config.verificationToken + config.endpointUrl;
         const challengeResponse = crypto.createHash('sha256').update(hashInput, 'utf8').digest('hex');
 
-        console.log(`eBay challenge verification successful for challenge_code: ${challengeCode}`);
+        console.log(`✅ eBay challenge verification successful`);
+        console.log(`Challenge code: ${challengeCode}`);
+        console.log(`Verification token: ${config.verificationToken ? '[SET]' : '[MISSING]'}`);
+        console.log(`Endpoint URL: ${config.endpointUrl}`);
         console.log(`Hash input: ${hashInput}`);
         console.log(`Hash input length: ${hashInput.length} characters`);
         console.log(`Challenge response: ${challengeResponse}`);
@@ -280,11 +310,13 @@ router.get('/', (req, res) => {
             challengeResponse: challengeResponse
         };
         
+        console.log(`Sending response:`, responseData);
         return res.status(200).json(responseData);
 
     } catch (error) {
-        console.error('Error processing eBay challenge code:', error);
-        return res.status(500).json({ error: 'Internal server error' });
+        console.error('❌ Error processing eBay challenge code:', error);
+        const errorResponse = { error: 'Internal server error' };
+        return res.status(500).json(errorResponse);
     }
 });
 
@@ -297,28 +329,42 @@ router.post('/', (req, res) => {
         const signature = req.headers['x-ebay-signature'];
         const timestamp = req.headers['x-ebay-timestamp'] || Date.now().toString();
 
-        console.log('Received eBay notification:', {
+        // Immediately set response headers to ensure eBay compatibility
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Cache-Control', 'no-cache');
+
+        console.log('✉️ Received eBay POST notification:', {
             hasPayload: !!payload,
             hasSignature: !!signature,
             timestamp: timestamp,
-            contentType: req.headers['content-type']
+            contentType: req.headers['content-type'],
+            method: req.method,
+            fullUrl: req.protocol + '://' + req.get('host') + req.originalUrl,
+            userAgent: req.headers['user-agent'],
+            ip: req.ip || req.connection.remoteAddress,
+            payloadSize: JSON.stringify(payload || {}).length
         });
 
         // For production, verify eBay signature (skip for testing)
         if (process.env.NODE_ENV === 'production' && signature) {
             if (!verifyEbaySignature(payload, signature, timestamp)) {
-                console.error('Invalid eBay signature');
-                return res.status(401).json({ error: 'Invalid signature' });
+                console.error('❌ Invalid eBay signature');
+                const errorResponse = { error: 'Invalid signature' };
+                return res.status(401).json(errorResponse);
             }
-            console.log('eBay signature verified successfully');
+            console.log('✅ eBay signature verified successfully');
         } else if (process.env.NODE_ENV === 'production') {
-            console.warn('Missing eBay signature in production mode');
+            console.warn('⚠️ Missing eBay signature in production mode');
+        } else {
+            console.log('ℹ️ Development mode: Skipping signature verification');
         }
 
         // Validate the payload structure
         if (!validatePayload(payload)) {
-            console.error('Invalid payload structure:', payload);
-            return res.status(400).json({ error: 'Invalid payload structure' });
+            console.error('❌ Invalid payload structure:', JSON.stringify(payload, null, 2));
+            const errorResponse = { error: 'Invalid payload structure' };
+            return res.status(400).json(errorResponse);
         }
 
         const notification = payload.notification;
@@ -331,12 +377,12 @@ router.post('/', (req, res) => {
 
         // Check if we've already processed this notification
         if (isDuplicateNotification(notificationId)) {
-            console.log(`Duplicate eBay account deletion notification: ${notificationId}`);
+            console.log(`♾️ Duplicate eBay account deletion notification: ${notificationId}`);
             // Still return success to eBay to acknowledge receipt
             return res.status(200).send();
         }
 
-        console.log(`Received eBay account deletion notification for user: ${username} (ID: ${userId})`);
+        console.log(`✅ Received eBay account deletion notification for user: ${username} (ID: ${userId})`);
 
         // Process the deletion (remove any stored eBay user data)
         const deletedDataSummary = processAccountDeletion(username, userId, eiasToken);
@@ -345,19 +391,23 @@ router.post('/', (req, res) => {
         const logSuccess = logDeletionNotification(payload, deletedDataSummary);
         
         if (!logSuccess) {
-            console.error('Failed to log deletion notification');
+            console.error('⚠️ Failed to log deletion notification');
             // Still return success to eBay since we processed the deletion
         }
 
-        console.log(`Successfully processed eBay account deletion for user: ${username}`);
+        console.log(`✅ Successfully processed eBay account deletion for user: ${username}`);
 
         // Return success response to eBay (must be 200 status with empty body)
-        res.setHeader('Content-Type', 'application/json');
         return res.status(200).send();
 
     } catch (error) {
-        console.error('Error processing eBay account deletion notification:', error);
-        return res.status(500).json({ error: 'Internal server error' });
+        console.error('❌ Error processing eBay account deletion notification:', {
+            error: error.message,
+            stack: error.stack,
+            timestamp: new Date().toISOString()
+        });
+        const errorResponse = { error: 'Internal server error' };
+        return res.status(500).json(errorResponse);
     }
 });
 

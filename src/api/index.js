@@ -83,17 +83,29 @@ router.use(rateLimit);
 // Mount routes
 console.log('Mounting routes...');
 
-// eBay compliance endpoint - must be BEFORE other middleware that might interfere
+// eBay compliance endpoint - CRITICAL: Must be BEFORE any authentication middleware
 // This endpoint needs to be accessible without authentication or CSRF protection
-// Handle OPTIONS preflight for eBay
+
+// Handle OPTIONS preflight for eBay with comprehensive headers
 router.options('/partsmatrix', (req, res) => {
+  console.log('🔄 eBay OPTIONS preflight request received');
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, X-EBAY-SIGNATURE, X-EBAY-TIMESTAMP');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, X-EBAY-SIGNATURE, X-EBAY-TIMESTAMP, User-Agent, Accept, Accept-Encoding, Cache-Control, Connection');
+  res.header('Access-Control-Max-Age', '86400');
+  res.header('Content-Type', 'application/json');
+  console.log('✅ OPTIONS response sent to eBay');
   res.status(204).end();
 });
 
-router.use('/partsmatrix', ebayComplianceRouter);
+// Mount eBay compliance router WITHOUT any authentication middleware
+console.log('📡 Mounting eBay compliance router at /partsmatrix');
+router.use('/partsmatrix', (req, res, next) => {
+  console.log(`🔍 eBay route intercepted: ${req.method} ${req.path}`);
+  console.log(`📍 Full URL: ${req.protocol}://${req.get('host')}${req.originalUrl}`);
+  console.log(`🔑 Auth header present: ${!!req.headers.authorization}`);
+  next();
+}, ebayComplianceRouter);
 
 // Public routes
 router.use('/vehicle-data', vehicleDataRouter);

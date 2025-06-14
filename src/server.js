@@ -3,6 +3,7 @@ import cors from 'cors';
 import router from './api/index.js';
 import connectDB from './api/config/db.js';
 import { cookieParser } from './api/middleware/cookies.js';
+import { securityHeaders, rateLimit } from './api/middleware/security.js';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
@@ -23,23 +24,30 @@ const app = express();
 // Trust proxy (important for production behind load balancers)
 app.set('trust proxy', 1);
 
-// CORS Configuration - Simplified and eBay-friendly
+// CORS Configuration - eBay-friendly and permissive
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow eBay and your own domains
     const allowedOrigins = [
       'https://developer.ebay.com',
       'https://api.ebay.com',
+      'https://notifications.ebay.com',
+      'https://api.sandbox.ebay.com',
       'https://phxautogroup.com',
       'https://www.phxautogroup.com',
       process.env.FRONTEND_URL,
     ].filter(Boolean);
     
+    console.log(`CORS check - Origin: ${origin || 'null'}, Allowed: ${allowedOrigins.includes(origin) || !origin}`);
+    
     // Allow no origin (for server-to-server requests like eBay's)
+    // eBay webhooks often come without an origin header
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(null, true); // Be permissive for eBay compliance
+      // Be permissive for eBay compliance - allow all origins for webhook endpoints
+      console.log(`CORS: Allowing unknown origin for potential webhook: ${origin}`);
+      callback(null, true);
     }
   },
   credentials: true,
@@ -50,7 +58,12 @@ const corsOptions = {
     'X-Requested-With', 
     'Accept', 
     'Origin', 
-    'Cache-Control'
+    'Cache-Control',
+    'X-EBAY-SIGNATURE',
+    'X-EBAY-TIMESTAMP',
+    'User-Agent',
+    'Accept-Encoding',
+    'Connection'
   ],
   maxAge: 86400 // 24 hours
 };
@@ -59,10 +72,47 @@ const corsOptions = {
 app.use(compression());
 app.use(cors(corsOptions));
 
-// Logging middleware
+// Enhanced logging middleware for debugging eBay requests
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} | ${req.method} ${req.url}`);
+  const isEbayRequest = req.url.includes('/partsmatrix');
+  const logPrefix = isEbayRequest ? '📡 [EBAY]' : '📜 [API]';
+  
+  console.log(`${logPrefix} ${new Date().toISOString()} | ${req.method} ${req.url}`);
+  
+  if (isEbayRequest) {
+    console.log(`${logPrefix} Headers:`, {
+      'user-agent': req.headers['user-agent'],
+      'content-type': req.headers['content-type'],
+      'authorization': req.headers['authorization'] ? 'PRESENT (will be removed)' : 'NOT_PRESENT',
+      'x-ebay-signature': req.headers['x-ebay-signature'] ? 'PRESENT' : 'NOT_PRESENT',
+      'x-ebay-timestamp': req.headers['x-ebay-timestamp'] ? 'PRESENT' : 'NOT_PRESENT',
+      'host': req.headers.host,
+      'origin': req.headers.origin || 'NO_ORIGIN',
+      'challenge_code': req.query.challenge_code ? 'PRESENT' : 'NOT_PRESENT'
+    });
+    console.log(`${logPrefix} IP: ${req.ip || req.connection.remoteAddress || 'UNKNOWN'}`);
+  }
+  
   next();
+});
+
+// Apply global middleware - but NOT to eBay compliance endpoint
+app.use((req, res, next) => {
+  // Skip security headers for eBay endpoint - they set their own
+  if (req.url.includes('/api/partsmatrix')) {
+    console.log('📡 [EBAY] Bypassing security middleware');
+    return next();
+  }
+  securityHeaders(req, res, next);
+});
+
+app.use((req, res, next) => {
+  // Skip rate limiting for eBay endpoint
+  if (req.url.includes('/api/partsmatrix')) {
+    console.log('📡 [EBAY] Bypassing rate limiting');
+    return next();
+  }
+  rateLimit(req, res, next);
 });
 
 // Body parsing middleware
