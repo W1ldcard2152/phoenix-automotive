@@ -41,8 +41,8 @@ export const securityHeaders = (req, res, next) => {
     'camera=(), microphone=(), geolocation=(self), interest-cohort=()'
   );
   
-  // Cache-Control for API responses
-  if (req.path.startsWith('/api/') && req.method === 'GET') {
+  // Cache-Control for API responses (exclude eBay endpoint which has its own headers)
+  if (req.path.startsWith('/api/') && req.method === 'GET' && !req.path.includes('/partsmatrix')) {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');

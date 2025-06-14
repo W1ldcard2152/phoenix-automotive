@@ -20,7 +20,7 @@ const config = {
         protocol: 'https'
     },
     // Set this to 'local' or 'production'
-    environment: 'local'
+    environment: 'production' // Changed to production for testing
 };
 
 const currentConfig = config[config.environment];
@@ -126,14 +126,21 @@ async function testChallengeCode() {
             port: currentConfig.port,
             path: `/api/partsmatrix?challenge_code=${testChallengeCode}`,
             method: 'GET',
-            protocol: currentConfig.protocol + ':'
+            protocol: currentConfig.protocol + ':',
+            headers: {
+                'User-Agent': 'eBayNotificationTest/1.0',
+                'Accept': 'application/json'
+            }
         });
 
+        console.log(`   📡 Request: ${currentConfig.protocol}://${currentConfig.host}/api/partsmatrix?challenge_code=${testChallengeCode}`);
+        
         if (response.statusCode === 200) {
             if (response.data && response.data.challengeResponse) {
                 addResult('Challenge Response', true, 'Returned valid challenge response');
                 console.log(`   🔐 Challenge Code: ${testChallengeCode}`);
                 console.log(`   🔑 Response Hash: ${response.data.challengeResponse.substring(0, 16)}...`);
+                console.log(`   📝 Full Response:`, response.data);
                 
                 // Verify the hash is 64 characters (SHA256 hex)
                 if (response.data.challengeResponse.length === 64) {
@@ -143,12 +150,15 @@ async function testChallengeCode() {
                 }
             } else {
                 addResult('Challenge Response', false, 'Missing challengeResponse in response');
+                console.log(`   ❌ Response body:`, response.rawData);
             }
         } else {
             addResult('Challenge Response', false, `HTTP ${response.statusCode}: ${response.rawData}`);
+            console.log(`   ❌ Full response headers:`, response.headers);
         }
     } catch (error) {
         addResult('Challenge Response', false, `Connection error: ${error.message}`);
+        console.log(`   ❌ Error details:`, error);
     }
 }
 
@@ -358,6 +368,8 @@ if (process.argv.includes('--production')) {
 } else if (process.argv.includes('--local')) {
     config.environment = 'local';
     console.log('💻 Testing LOCAL environment');
+} else {
+    console.log(`🔧 Testing ${config.environment.toUpperCase()} environment (default)`);
 }
 
 // Run the tests

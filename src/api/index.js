@@ -85,6 +85,14 @@ console.log('Mounting routes...');
 
 // eBay compliance endpoint - must be BEFORE other middleware that might interfere
 // This endpoint needs to be accessible without authentication or CSRF protection
+// Handle OPTIONS preflight for eBay
+router.options('/partsmatrix', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, X-EBAY-SIGNATURE, X-EBAY-TIMESTAMP');
+  res.status(204).end();
+});
+
 router.use('/partsmatrix', ebayComplianceRouter);
 
 // Public routes

@@ -12,7 +12,11 @@ import compression from 'compression';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config();
+// Load environment variables from project root
+const projectRoot = path.resolve(__dirname, '../');
+const envPath = path.join(projectRoot, '.env');
+console.log(`[Server] Loading .env from: ${envPath}`);
+dotenv.config({ path: envPath });
 
 const app = express();
 

@@ -11,19 +11,65 @@ import dotenv from 'dotenv';
 const router = Router();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const projectRoot = path.resolve(__dirname, '../../../');
-dotenv.config({ path: path.join(projectRoot, '.env') });
 
-// Configuration - Load from environment variables
-const EBAY_CONFIG = {
-    verificationToken: process.env.EBAY_VERIFICATION_TOKEN || '',
-    endpointUrl: process.env.EBAY_ENDPOINT_URL || 'https://phxautogroup.com/api/partsmatrix',
-    logDirectory: path.join(__dirname, '../../../logs/ebay')
-};
+// Use consistent path resolution - match server.js
+const projectRoot = path.resolve(__dirname, '../../../');
+const envPath = path.join(projectRoot, '.env');
+console.log(`[EbayCompliance] Loading .env from: ${envPath}`);
+console.log(`[EbayCompliance] __dirname: ${__dirname}`);
+console.log(`[EbayCompliance] projectRoot: ${projectRoot}`);
+dotenv.config({ path: envPath });
+
+// Log the loaded environment variables for debugging
+console.log(`[EbayCompliance] EBAY_ENDPOINT_URL: ${process.env.EBAY_ENDPOINT_URL || 'NOT SET'}`);
+console.log(`[EbayCompliance] EBAY_VERIFICATION_TOKEN: ${process.env.EBAY_VERIFICATION_TOKEN ? 'SET' : 'NOT SET'}`);
+
+// Configuration - Load from environment variables (function to get fresh values)
+function getEbayConfig() {
+    return {
+        verificationToken: process.env.EBAY_VERIFICATION_TOKEN || '',
+        endpointUrl: process.env.EBAY_ENDPOINT_URL || 'https://www.phxautogroup.com/api/partsmatrix',
+        logDirectory: path.join(projectRoot, 'logs/ebay')
+    };
+}
+
+// eBay-specific middleware for proper header handling
+router.use((req, res, next) => {
+    console.log(`[EbayMiddleware] Processing ${req.method} ${req.path}`);
+    
+    // Set CORS headers for eBay API compatibility
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, X-EBAY-SIGNATURE, X-EBAY-TIMESTAMP');
+    
+    // Set proper content type and cache headers for all JSON responses
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
+    console.log(`[EbayMiddleware] Headers set for ${req.method} ${req.path}`);
+    
+    // Handle preflight OPTIONS requests
+    if (req.method === 'OPTIONS') {
+        console.log(`[EbayMiddleware] Handling OPTIONS request`);
+        return res.status(200).end();
+    }
+    
+    console.log(`eBay endpoint accessed: ${req.method} ${req.path}`, {
+        userAgent: req.headers['user-agent'],
+        contentType: req.headers['content-type'],
+        hasSignature: !!req.headers['x-ebay-signature'],
+        hasChallenge: !!req.query.challenge_code
+    });
+    
+    next();
+});
 
 // Ensure log directory exists
-if (!fs.existsSync(EBAY_CONFIG.logDirectory)) {
-    fs.mkdirSync(EBAY_CONFIG.logDirectory, { recursive: true });
+const ebayConfig = getEbayConfig();
+if (!fs.existsSync(ebayConfig.logDirectory)) {
+    fs.mkdirSync(ebayConfig.logDirectory, { recursive: true });
 }
 
 /**
@@ -63,6 +109,7 @@ function validatePayload(payload) {
  * Log deletion notification to file system
  */
 function logDeletionNotification(payload, processingResult) {
+    const config = getEbayConfig();
     const logEntry = {
         timestamp: new Date().toISOString(),
         notificationId: payload.notification.notificationId,
@@ -81,7 +128,7 @@ function logDeletionNotification(payload, processingResult) {
     // Create filename with timestamp and notification ID
     const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     const filename = `ebay_deletion_${timestamp}_${payload.notification.notificationId.substring(0, 8)}.json`;
-    const logPath = path.join(EBAY_CONFIG.logDirectory, filename);
+    const logPath = path.join(config.logDirectory, filename);
 
     try {
         fs.writeFileSync(logPath, JSON.stringify(logEntry, null, 2));
@@ -97,12 +144,13 @@ function logDeletionNotification(payload, processingResult) {
  * Check if notification has already been processed
  */
 function isDuplicateNotification(notificationId) {
+    const config = getEbayConfig();
     try {
-        const files = fs.readdirSync(EBAY_CONFIG.logDirectory);
+        const files = fs.readdirSync(config.logDirectory);
         
         for (const file of files) {
             if (file.startsWith('ebay_deletion_') && file.endsWith('.json')) {
-                const filePath = path.join(EBAY_CONFIG.logDirectory, file);
+                const filePath = path.join(config.logDirectory, file);
                 const content = JSON.parse(fs.readFileSync(filePath, 'utf8'));
                 if (content.notificationId === notificationId) {
                     return true;
@@ -153,34 +201,85 @@ function processAccountDeletion(username, userId, eiasToken) {
 }
 
 /**
+ * Verify eBay signature for incoming notifications
+ */
+function verifyEbaySignature(payload, signature, timestamp) {
+    const config = getEbayConfig();
+    try {
+        if (!signature || !config.verificationToken) {
+            return false;
+        }
+
+        // eBay signature format: timestamp.payload hashed with verification token
+        const message = timestamp + '.' + JSON.stringify(payload);
+        const expectedSignature = crypto
+            .createHmac('sha256', config.verificationToken)
+            .update(message, 'utf8')
+            .digest('hex');
+
+        // Compare signatures securely
+        return crypto.timingSafeEqual(
+            Buffer.from(signature, 'hex'),
+            Buffer.from(expectedSignature, 'hex')
+        );
+    } catch (error) {
+        console.error('Error verifying eBay signature:', error);
+        return false;
+    }
+}
+
+/**
  * GET /partsmatrix - Handle eBay challenge code verification
  */
 router.get('/', (req, res) => {
     const challengeCode = req.query.challenge_code;
+    const config = getEbayConfig(); // Get fresh config
+
+    // Log the incoming request for debugging
+    console.log('eBay challenge request received:', {
+        challengeCode: challengeCode ? challengeCode.substring(0, 10) + '...' : 'missing',
+        userAgent: req.headers['user-agent'],
+        ip: req.ip || req.connection.remoteAddress,
+        timestamp: new Date().toISOString(),
+        configEndpoint: config.endpointUrl, // Log the actual config being used
+        headers: {
+            'accept': req.headers.accept,
+            'content-type': req.headers['content-type'],
+            'host': req.headers.host
+        }
+    });
 
     if (!challengeCode) {
         console.error('No challenge_code parameter in GET request');
         return res.status(400).json({ error: 'Missing challenge_code parameter' });
     }
 
-    if (!EBAY_CONFIG.verificationToken) {
+    // Validate challenge code format (basic sanity check)
+    if (challengeCode.length < 3 || challengeCode.length > 500) {
+        console.error('Invalid challenge_code format:', challengeCode.length, 'characters');
+        return res.status(400).json({ error: 'Invalid challenge_code format' });
+    }
+
+    if (!config.verificationToken) {
         console.error('No EBAY_VERIFICATION_TOKEN configured');
         return res.status(500).json({ error: 'Configuration not found' });
     }
 
     try {
         // Create the hash as specified by eBay: challengeCode + verificationToken + endpoint
-        const hashInput = challengeCode + EBAY_CONFIG.verificationToken + EBAY_CONFIG.endpointUrl;
+        const hashInput = challengeCode + config.verificationToken + config.endpointUrl;
         const challengeResponse = crypto.createHash('sha256').update(hashInput, 'utf8').digest('hex');
 
         console.log(`eBay challenge verification successful for challenge_code: ${challengeCode}`);
+        console.log(`Hash input: ${hashInput}`);
+        console.log(`Hash input length: ${hashInput.length} characters`);
+        console.log(`Challenge response: ${challengeResponse}`);
 
         // Return the response in the exact format eBay expects
         const responseData = {
             challengeResponse: challengeResponse
         };
-
-        res.setHeader('Content-Type', 'application/json');
+        
         return res.status(200).json(responseData);
 
     } catch (error) {
@@ -195,6 +294,26 @@ router.get('/', (req, res) => {
 router.post('/', (req, res) => {
     try {
         const payload = req.body;
+        const signature = req.headers['x-ebay-signature'];
+        const timestamp = req.headers['x-ebay-timestamp'] || Date.now().toString();
+
+        console.log('Received eBay notification:', {
+            hasPayload: !!payload,
+            hasSignature: !!signature,
+            timestamp: timestamp,
+            contentType: req.headers['content-type']
+        });
+
+        // For production, verify eBay signature (skip for testing)
+        if (process.env.NODE_ENV === 'production' && signature) {
+            if (!verifyEbaySignature(payload, signature, timestamp)) {
+                console.error('Invalid eBay signature');
+                return res.status(401).json({ error: 'Invalid signature' });
+            }
+            console.log('eBay signature verified successfully');
+        } else if (process.env.NODE_ENV === 'production') {
+            console.warn('Missing eBay signature in production mode');
+        }
 
         // Validate the payload structure
         if (!validatePayload(payload)) {
@@ -232,7 +351,8 @@ router.post('/', (req, res) => {
 
         console.log(`Successfully processed eBay account deletion for user: ${username}`);
 
-        // Return success response to eBay (must be 200 status)
+        // Return success response to eBay (must be 200 status with empty body)
+        res.setHeader('Content-Type', 'application/json');
         return res.status(200).send();
 
     } catch (error) {
@@ -243,15 +363,17 @@ router.post('/', (req, res) => {
 
 // Health check endpoint (optional, for monitoring)
 router.get('/health', (req, res) => {
+    const config = getEbayConfig(); // Get fresh config
     const health = {
         status: 'OK',
         timestamp: new Date().toISOString(),
-        endpoint: EBAY_CONFIG.endpointUrl,
-        hasVerificationToken: !!EBAY_CONFIG.verificationToken,
-        logDirectory: EBAY_CONFIG.logDirectory
+        endpoint: config.endpointUrl,
+        hasVerificationToken: !!config.verificationToken,
+        logDirectory: config.logDirectory,
+        environment: process.env.NODE_ENV || 'development'
     };
     
-    res.json(health);
+    res.status(200).json(health);
 });
 
 export default router;
