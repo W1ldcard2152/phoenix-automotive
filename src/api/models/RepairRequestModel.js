@@ -83,6 +83,15 @@ const repairRequestSchema = new Schema({
   timestamps: true
 });
 
+// Add database indexes for performance
+repairRequestSchema.index({ status: 1, createdAt: -1 }); // Filter by status, sort by date
+repairRequestSchema.index({ 'customerInfo.name': 1 }); // Customer name searches
+repairRequestSchema.index({ 'customerInfo.phone': 1 }); // Phone lookups
+repairRequestSchema.index({ 'customerInfo.email': 1 }); // Email lookups
+repairRequestSchema.index({ 'serviceInfo.urgency': 1, createdAt: -1 }); // Urgent requests first
+repairRequestSchema.index({ createdAt: -1 }); // Recent requests first
+repairRequestSchema.index({ isArchived: 1, status: 1 }); // Archived/active filtering
+
 // Add validation to ensure at least one contact method is provided
 repairRequestSchema.pre('save', function(next) {
   console.log('Saving repair request:', this.toObject());

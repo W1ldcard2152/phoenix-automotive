@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
       throw new Error('Database connection is not ready');
     }
     
-    const { status, dateFrom, dateTo, make, model, year } = req.query;
+    const { status, dateFrom, dateTo, make, model, year, page = 1, limit = 20 } = req.query;
     let query = {};
 
     if (status) query.status = status;
@@ -38,15 +38,35 @@ router.get('/', async (req, res) => {
       if (dateTo) query.dateAcquired.$lte = new Date(dateTo);
     }
 
-    console.log('Executing query:', JSON.stringify(query));
+    // Pagination logic
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit))); // Max 100 per page
+    const skip = (pageNum - 1) * limitNum;
 
+    console.log('Executing query:', JSON.stringify(query), `Page: ${pageNum}, Limit: ${limitNum}`);
+
+    // Get total count for pagination metadata
+    const totalCount = await DismantledVehicleModel.DismantledVehicle.countDocuments(query);
+    
     const vehicles = await DismantledVehicleModel.DismantledVehicle.find(query)
       .sort({ dateAcquired: -1 })
+      .limit(limitNum)
+      .skip(skip)
       .lean()
       .exec();
       
-    console.log(`Successfully fetched ${vehicles.length} vehicles`);
-    res.json(vehicles);
+    console.log(`Successfully fetched ${vehicles.length} of ${totalCount} vehicles`);
+    
+    res.json({
+      data: vehicles,
+      pagination: {
+        currentPage: pageNum,
+        totalPages: Math.ceil(totalCount / limitNum),
+        totalCount,
+        hasNextPage: skip + vehicles.length < totalCount,
+        hasPrevPage: pageNum > 1
+      }
+    });
     
   } catch (error) {
     console.error('Error fetching vehicles:', {

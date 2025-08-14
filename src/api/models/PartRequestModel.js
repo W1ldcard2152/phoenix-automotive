@@ -107,6 +107,15 @@ const partRequestSchema = new Schema({
   timestamps: true
 });
 
+// Add database indexes for performance
+partRequestSchema.index({ status: 1, createdAt: -1 }); // Filter by status, sort by date
+partRequestSchema.index({ 'vehicleInfo.make': 1, 'vehicleInfo.model': 1, 'vehicleInfo.year': 1 }); // Vehicle searches
+partRequestSchema.index({ 'partDetails.system': 1, 'partDetails.component': 1 }); // Part searches
+partRequestSchema.index({ 'customerInfo.email': 1 }); // Customer email lookups
+partRequestSchema.index({ 'customerInfo.phone': 1 }); // Customer phone lookups
+partRequestSchema.index({ vin: 1 }); // VIN lookups
+partRequestSchema.index({ createdAt: -1 }); // Recent requests first
+
 // Add logging middleware
 partRequestSchema.pre('save', function(next) {
   console.log('Saving part request:', this.toObject());

@@ -134,16 +134,35 @@ async function handleResponse(response) {
 
 export const apiClient = {
   dismantledVehicles: {
-    getAll: async () => {
+    getAll: async (options = {}) => {
       try {
         // For the admin panel, use the admin route instead of the public route
         const isAdminPanel = window.location.pathname.includes('/admin');
-        const endpoint = isAdminPanel ? `${API_BASE_URL}/admin/dismantled-vehicles` : `${API_BASE_URL}/dismantled-vehicles`;
+        const baseEndpoint = isAdminPanel ? `${API_BASE_URL}/admin/dismantled-vehicles` : `${API_BASE_URL}/dismantled-vehicles`;
+        
+        // Add pagination and filter parameters
+        const params = new URLSearchParams();
+        if (options.page) params.append('page', options.page);
+        if (options.limit) params.append('limit', options.limit);
+        if (options.status) params.append('status', options.status);
+        if (options.make) params.append('make', options.make);
+        if (options.model) params.append('model', options.model);
+        if (options.year) params.append('year', options.year);
+        
+        const endpoint = params.toString() ? `${baseEndpoint}?${params}` : baseEndpoint;
         console.log('Using endpoint for getAll dismantled vehicles:', endpoint);
         
         const response = await makeRequest(endpoint);
-        const data = await handleResponse(response);
-        return Array.isArray(data) ? data : [];
+        const result = await response.json();
+        
+        // Handle both old format (array) and new format (paginated object)
+        if (Array.isArray(result)) {
+          return result; // Old format compatibility
+        } else if (result.data) {
+          return result; // New paginated format with metadata
+        } else {
+          return [];
+        }
       } catch (error) {
         console.error('Failed to fetch vehicles:', error);
         throw new Error('Failed to fetch vehicles');

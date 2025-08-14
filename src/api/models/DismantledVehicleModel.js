@@ -81,6 +81,14 @@ const dismantledVehicleSchema = new Schema({
   timestamps: true
 });
 
+// Add database indexes for performance
+dismantledVehicleSchema.index({ make: 1, model: 1, year: 1 }); // Most common search combination
+dismantledVehicleSchema.index({ status: 1, dateAcquired: -1 }); // Filter by status, sort by date
+dismantledVehicleSchema.index({ vin: 1 }); // VIN lookups (already unique but explicit index)
+dismantledVehicleSchema.index({ stockNumber: 1 }); // Stock number lookups
+dismantledVehicleSchema.index({ createdAt: -1 }); // Recent records first
+dismantledVehicleSchema.index({ make: 1, year: 1 }); // Make + year searches
+
 dismantledVehicleSchema.pre('save', function(next) {
   console.log('Saving dismantled vehicle:', this.toObject());
   console.log('Initializing DismantledVehicle model with collection:', 'dismantled_vehicles');
