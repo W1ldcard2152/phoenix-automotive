@@ -139,10 +139,7 @@ const RepairServicesPage = () => {
           engineSize: ''
         },
         serviceInfo: {
-          serviceType: 'General Repair',
-          otherServiceType: '',
-          description: formData.description || 'Customer will provide details during phone consultation',
-          preferredDate: '',
+          message: formData.description || 'Customer will provide details during phone consultation',
           urgency: 'Medium'
         },
         contactMethod: formData.contactMethod,

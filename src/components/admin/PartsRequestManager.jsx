@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { 
   Table,
@@ -82,8 +82,8 @@ const PartsRequestManager = () => {
             </TableHeader>
             <TableBody>
               {requests.map((request) => (
-                <>
-                  <TableRow key={request._id}>
+                <React.Fragment key={request._id}>
+                  <TableRow>
                     <TableCell>
                       <Button
                         variant="ghost"
@@ -202,7 +202,7 @@ const PartsRequestManager = () => {
                       </TableCell>
                     </TableRow>
                   )}
-                </>
+                </React.Fragment>
               ))}
             </TableBody>
           </Table>

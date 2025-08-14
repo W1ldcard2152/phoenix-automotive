@@ -54,45 +54,65 @@ export const securityHeaders = (req, res, next) => {
 // Rate limiting middleware (simple in-memory implementation)
 // In production, use a more robust solution like express-rate-limit
 const requestCounts = new Map();
+const authRequestCounts = new Map();
 const WINDOW_MS = 15 * 60 * 1000; // 15 minutes
-const MAX_REQUESTS = 100; // 100 requests per window
+const MAX_REQUESTS = 200; // Increased from 100 to 200 requests per window
+const AUTH_WINDOW_MS = 2 * 60 * 1000; // Increased from 1 to 2 minutes for auth endpoints
+const MAX_AUTH_REQUESTS = 20; // Increased from 10 to 20 auth requests per 2 minutes
 
 export const rateLimit = (req, res, next) => {
   const ip = req.ip || req.connection.remoteAddress;
   const now = Date.now();
+  const isAuthEndpoint = req.path.includes('/auth/refresh') || req.path.includes('/auth/login');
+  
+  // Note: Rate limiting active for all environments
+  
+  // Use different rate limits for auth endpoints
+  const counts = isAuthEndpoint ? authRequestCounts : requestCounts;
+  const windowMs = isAuthEndpoint ? AUTH_WINDOW_MS : WINDOW_MS;
+  const maxRequests = isAuthEndpoint ? MAX_AUTH_REQUESTS : MAX_REQUESTS;
   
   // Clean up old entries
-  for (const [key, value] of requestCounts.entries()) {
-    if (now - value.timestamp > WINDOW_MS) {
-      requestCounts.delete(key);
+  for (const [key, value] of counts.entries()) {
+    if (now - value.timestamp > windowMs) {
+      counts.delete(key);
     }
   }
   
   // Get current count for this IP
-  const current = requestCounts.get(ip) || { count: 0, timestamp: now };
+  const current = counts.get(ip) || { count: 0, timestamp: now };
   
   // If this is a new window, reset count
-  if (now - current.timestamp > WINDOW_MS) {
+  if (now - current.timestamp > windowMs) {
     current.count = 0;
     current.timestamp = now;
   }
   
   // Increment count
   current.count += 1;
-  requestCounts.set(ip, current);
+  counts.set(ip, current);
   
   // Check if over limit
-  if (current.count > MAX_REQUESTS) {
+  if (current.count > maxRequests) {
+    const retryAfter = Math.ceil((current.timestamp + windowMs - now) / 1000);
+    console.warn(`Rate limit exceeded for ${isAuthEndpoint ? 'auth' : 'general'} endpoint:`, {
+      ip,
+      path: req.path,
+      count: current.count,
+      limit: maxRequests,
+      retryAfter
+    });
+    
     return res.status(429).json({
       error: 'Too many requests, please try again later',
-      retryAfter: Math.ceil((current.timestamp + WINDOW_MS - now) / 1000)
+      retryAfter
     });
   }
   
   // Add rate limit headers
-  res.setHeader('X-RateLimit-Limit', MAX_REQUESTS);
-  res.setHeader('X-RateLimit-Remaining', Math.max(0, MAX_REQUESTS - current.count));
-  res.setHeader('X-RateLimit-Reset', Math.ceil((current.timestamp + WINDOW_MS) / 1000));
+  res.setHeader('X-RateLimit-Limit', maxRequests);
+  res.setHeader('X-RateLimit-Remaining', Math.max(0, maxRequests - current.count));
+  res.setHeader('X-RateLimit-Reset', Math.ceil((current.timestamp + windowMs) / 1000));
   
   next();
 };

@@ -3,6 +3,9 @@ import { jwtDecode } from 'jwt-decode';
 
 const AuthContext = createContext(null);
 
+// Global refresh promise to prevent multiple simultaneous refreshes across component instances
+let globalRefreshPromise = null;
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
@@ -27,10 +30,17 @@ export const AuthProvider = ({ children }) => {
 
   // Function to refresh the token
   const refreshToken = useCallback(async () => {
-    if (refreshing) return token;
+    // Check if there's already a global refresh in progress
+    if (globalRefreshPromise) {
+      console.log('Waiting for existing refresh to complete...');
+      return globalRefreshPromise;
+    }
     
-    try {
-      setRefreshing(true);
+    // Create a new refresh promise
+    globalRefreshPromise = (async () => {
+      try {
+        setRefreshing(true);
+        console.log('Starting token refresh...');
       
       const response = await fetch('/api/auth/refresh', {
         method: 'POST',
@@ -44,6 +54,25 @@ export const AuthProvider = ({ children }) => {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Token refresh failed:', errorText);
+        
+        // Handle rate limiting specifically
+        if (response.status === 429) {
+          const errorData = JSON.parse(errorText);
+          const retryAfter = errorData.retryAfter || 60;
+          console.warn(`Rate limited. Will retry in ${retryAfter} seconds`);
+          
+          // Schedule a retry after the specified time
+          setTimeout(() => {
+            console.log('Retrying token refresh after rate limit...');
+            globalRefreshPromise = null; // Clear the promise so retry can proceed
+            refreshToken().catch(error => {
+              console.error('Retry after rate limit failed:', error);
+            });
+          }, retryAfter * 1000);
+          
+          throw new Error(`Rate limited. Retrying in ${retryAfter} seconds`);
+        }
+        
         throw new Error('Failed to refresh token');
       }
 
@@ -66,16 +95,21 @@ export const AuthProvider = ({ children }) => {
       } catch (error) {
         console.error('Failed to decode token expiry:', error);
       }
-      
-      return data.accessToken;
-    } catch (error) {
-      console.error('Token refresh error:', error);
-      // Don't logout automatically on refresh failure
-      return null;
-    } finally {
-      setRefreshing(false);
-    }
-  }, [refreshing, token]);
+        
+        return data.accessToken;
+      } catch (error) {
+        console.error('Token refresh error:', error);
+        // Don't logout automatically on refresh failure
+        return null;
+      } finally {
+        setRefreshing(false);
+        // Clear the global promise so future refreshes can proceed
+        globalRefreshPromise = null;
+      }
+    })();
+    
+    return globalRefreshPromise;
+  }, []);
 
   // Initialize auth state - simplified
   useEffect(() => {
@@ -99,8 +133,13 @@ export const AuthProvider = ({ children }) => {
               const decoded = jwtDecode(storedToken);
               setTokenExpiry(decoded.exp * 1000);
             } else {
-              // Try to refresh the token
-              await refreshToken();
+              console.log('Stored token is expired, clearing it');
+              // Clear expired tokens instead of trying to refresh during initialization
+              localStorage.removeItem('authToken');
+              localStorage.removeItem('user');
+              setToken(null);
+              setUser(null);
+              setTokenExpiry(null);
             }
           } catch (error) {
             console.error('Error parsing stored auth data:', error);
@@ -117,7 +156,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     initialize();
-  }, [isTokenExpired, refreshToken]);
+  }, []); // Remove refreshToken dependency to prevent cascade
 
   // Login function - simplified
   const login = async (username, password) => {
@@ -190,16 +229,14 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Verify token function - simplified
+  // Verify token function - optimized to reduce refresh triggers
   const verifyToken = async () => {
     if (!token) return false;
     
     // Check if token is expired locally first
     if (isTokenExpired(token)) {
-      console.log('Token expired locally, attempting refresh');
-      // Try to refresh the token
-      const newToken = await refreshToken();
-      return !!newToken;
+      console.log('Token expired locally - returning false (let automatic refresh handle it)');
+      return false; // Don't trigger refresh here - let the automatic timer handle it
     }
     
     try {
@@ -207,34 +244,43 @@ export const AuthProvider = ({ children }) => {
         headers: {
           'Authorization': `Bearer ${token}`
         },
-        credentials: 'include' // Include cookies
+        credentials: 'include'
       });
       
-      // Handle non-JSON responses gracefully
+      if (!response.ok) {
+        console.log('Token verification failed with status:', response.status);
+        // Only refresh on 401/403, not on network errors
+        if (response.status === 401 || response.status === 403) {
+          const newToken = await refreshToken();
+          return !!newToken;
+        }
+        return false;
+      }
+      
+      // Parse response safely
       let data;
       try {
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
           data = await response.json();
         } else {
-          console.warn('Non-JSON response from verify endpoint, attempting refresh');
-          const newToken = await refreshToken();
-          return !!newToken;
+          // Non-JSON response, assume invalid but don't refresh
+          console.warn('Non-JSON response from verify endpoint');
+          return false;
         }
       } catch (parseError) {
         console.error('Error parsing verify response:', parseError);
+        return false; // Don't refresh on parse errors
+      }
+      
+      if (!data.valid) {
+        console.log('Token marked as invalid by server');
+        // Only refresh if server explicitly says token is invalid
         const newToken = await refreshToken();
         return !!newToken;
       }
       
-      if (!response.ok || !data.valid) {
-        console.log('Token failed verification, attempting refresh');
-        // Try to refresh the token if verification fails
-        const newToken = await refreshToken();
-        return !!newToken;
-      }
-      
-      // Update user data if it was returned
+      // Update user data if returned
       if (data.user) {
         setUser(data.user);
         localStorage.setItem('user', JSON.stringify(data.user));
@@ -243,19 +289,8 @@ export const AuthProvider = ({ children }) => {
       return true;
     } catch (error) {
       console.error('Token verification error:', error);
-      // Try refresh on network errors instead of failing immediately
-      try {
-        console.log('Attempting token refresh after verification error');
-        const newToken = await refreshToken();
-        if (newToken) {
-          console.log('Successfully refreshed token after verification error');
-          return true;
-        }
-      } catch (refreshError) {
-        console.error('Refresh after verification error failed:', refreshError);
-      }
       
-      // Only logout on critical errors, not network issues
+      // Only logout on critical auth errors, not network issues
       if (error.message && (error.message.includes('Invalid token') || 
           error.message.includes('Token has been revoked'))) {
         console.log('Critical token error, logging out');
@@ -263,7 +298,7 @@ export const AuthProvider = ({ children }) => {
         return false;
       }
       
-      // For other errors (like network issues), don't log out
+      // For network errors, just return false (don't refresh)
       return false;
     }
   };
@@ -276,10 +311,12 @@ export const AuthProvider = ({ children }) => {
     const timeUntilRefresh = tokenExpiry - Date.now() - (5 * 60 * 1000); 
     console.log('Time until token refresh:', Math.floor(timeUntilRefresh / 1000 / 60), 'minutes');
     
-    // If timeUntilRefresh is negative, refresh immediately
+    // If timeUntilRefresh is negative, refresh immediately (but don't await to prevent blocking)
     if (timeUntilRefresh <= 0) {
       console.log('Token expiring soon or already expired, refreshing immediately');
-      refreshToken();
+      refreshToken().catch(error => {
+        console.error('Scheduled token refresh failed:', error);
+      });
       return;
     }
     
@@ -289,14 +326,16 @@ export const AuthProvider = ({ children }) => {
     
     const intervalId = setTimeout(() => {
       console.log('Refreshing token on schedule');
-      refreshToken();
+      refreshToken().catch(error => {
+        console.error('Scheduled token refresh failed:', error);
+      });
     }, refreshInterval);
     
     return () => {
       console.log('Clearing token refresh timer');
       clearTimeout(intervalId);
     };
-  }, [token, tokenExpiry, refreshToken]);
+  }, [token, tokenExpiry]); // Remove refreshToken dependency to prevent cascade
 
   const value = {
     user,

@@ -102,44 +102,18 @@ const ProtectedRoute = ({ children }) => {
       
       if (newToken) {
         console.log('Session extended successfully');
-        setAuthenticated(true); // Ensure authenticated state is updated
+        setAuthenticated(true);
         setupSessionTimeout();
       } else {
-        console.warn('Token refresh failed - will try again');
-        // Don't immediately logout on failed refresh
-        // Instead set a short timeout to try verifying token again
-        setTimeout(async () => {
-          const valid = await verifyToken();
-          if (!valid) {
-            console.warn('Could not verify token after refresh attempt, logging out');
-            logout();
-            window.location.href = '/login';
-          } else {
-            console.log('Token verified after refresh attempt');
-            setupSessionTimeout();
-          }
-        }, 1000);
+        console.warn('Token refresh failed - logging out');
+        logout();
+        window.location.href = '/login';
       }
     } catch (error) {
       console.error('Error extending session:', error);
-      // Add retry mechanism instead of immediately logging out
-      setTimeout(async () => {
-        try {
-          const valid = await verifyToken();
-          if (valid) {
-            console.log('Token verified after error recovery');
-            setShowTimeout(false);
-            setupSessionTimeout();
-          } else {
-            logout();
-            window.location.href = '/login';
-          }
-        } catch (retryError) {
-          console.error('Retry failed:', retryError);
-          logout();
-          window.location.href = '/login';
-        }
-      }, 2000);
+      // Don't retry with more auth calls - just logout on error
+      logout();
+      window.location.href = '/login';
     }
   };
 
@@ -164,39 +138,18 @@ const ProtectedRoute = ({ children }) => {
     }
   }, [token]);
 
-  // Check authentication status
+  // Check authentication status - simplified to trust AuthContext
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        // If we're already authenticated via context, we're good
-        if (isAuthenticated) {
-          setAuthenticated(true);
-          setLoading(false);
-          
-          // Setup session timeout
-          setupSessionTimeout();
-          return;
-        }
-        
-        // Double-check by verifying the token
-        const isValid = await verifyToken();
-        setAuthenticated(isValid);
-        
-        if (isValid) {
-          // Setup session timeout
-          setupSessionTimeout();
-        }
-      } catch (error) {
-        console.error('Auth check error:', error);
-        setAuthenticated(false);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     // Only run check if the auth context is done loading
     if (!authLoading) {
-      checkAuth();
+      console.log('ProtectedRoute: Auth context loaded, isAuthenticated:', isAuthenticated);
+      setAuthenticated(isAuthenticated);
+      setLoading(false);
+      
+      if (isAuthenticated) {
+        // Setup session timeout
+        setupSessionTimeout();
+      }
     }
     
     return () => {
@@ -204,7 +157,7 @@ const ProtectedRoute = ({ children }) => {
       if (timeoutIdRef.current) clearTimeout(timeoutIdRef.current);
       if (warningIdRef.current) clearTimeout(warningIdRef.current);
     };
-  }, [isAuthenticated, verifyToken, authLoading]);
+  }, [isAuthenticated, authLoading]); // Removed verifyToken dependency
 
   // Set up activity tracking
   useEffect(() => {

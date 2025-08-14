@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { 
   Table,
@@ -55,9 +55,14 @@ const RepairRequestManager = () => {
   };
 
   const getServiceTypeDisplay = (request) => {
-    return request.serviceInfo.serviceType === 'Other' 
-      ? request.serviceInfo.otherServiceType 
-      : request.serviceInfo.serviceType;
+    // Handle both old and new data structures
+    if (request.serviceInfo?.serviceType) {
+      return request.serviceInfo.serviceType === 'Other' 
+        ? request.serviceInfo.otherServiceType 
+        : request.serviceInfo.serviceType;
+    }
+    // For simplified requests or requests without serviceType
+    return request.isSimplifiedRequest ? 'General Repair' : 'Service Request';
   };
 
   const formatDate = (dateString) => {
@@ -114,8 +119,8 @@ const RepairRequestManager = () => {
             </TableHeader>
             <TableBody>
               {requests.map((request) => (
-                <>
-                  <TableRow key={request._id}>
+                <React.Fragment key={request._id}>
+                  <TableRow>
                     <TableCell>
                       <Button
                         variant="ghost"
@@ -133,7 +138,10 @@ const RepairRequestManager = () => {
                     </TableCell>
                     <TableCell>{request.customerInfo.name}</TableCell>
                     <TableCell>
-                      {request.vehicleInfo.year} {request.vehicleInfo.make} {request.vehicleInfo.model}
+                      {request.vehicleInfo ? 
+                        `${request.vehicleInfo.year || ''} ${request.vehicleInfo.make || ''} ${request.vehicleInfo.model || ''}`.trim() || 'Vehicle info incomplete' :
+                        'Vehicle details will be collected during consultation'
+                      }
                     </TableCell>
                     <TableCell>
                       {getServiceTypeDisplay(request)}
@@ -156,35 +164,23 @@ const RepairRequestManager = () => {
                           <div className="grid grid-cols-2 gap-8">
                             {/* Left Column */}
                             <div className="space-y-6">
-                              {/* Vehicle Details */}
-                              <div>
-                                <h4 className="font-semibold mb-2">Vehicle Details</h4>
-                                <div className="space-y-1 text-sm">
-                                  <p><span className="font-medium">VIN:</span> {request.vehicleInfo.vin}</p>
-                                  <p><span className="font-medium">Year/Make/Model:</span> {request.vehicleInfo.year} {request.vehicleInfo.make} {request.vehicleInfo.model}</p>
-                                  {request.vehicleInfo.trim && (
-                                    <p><span className="font-medium">Trim:</span> {request.vehicleInfo.trim}</p>
-                                  )}
-                                  <p><span className="font-medium">Mileage:</span> {request.vehicleInfo.mileage.toLocaleString()} miles</p>
-                                  {request.vehicleInfo.engineSize && (
-                                    <p><span className="font-medium">Engine:</span> {request.vehicleInfo.engineSize}</p>
-                                  )}
-                                </div>
-                              </div>
-
                               {/* Service Details */}
                               <div>
                                 <h4 className="font-semibold mb-2">Service Details</h4>
                                 <div className="space-y-1 text-sm">
                                   <p><span className="font-medium">Service Type:</span> {getServiceTypeDisplay(request)}</p>
                                   <p><span className="font-medium">Urgency:</span> {request.serviceInfo.urgency}</p>
-                                  {request.serviceInfo.preferredDate && (
-                                    <p><span className="font-medium">Preferred Date:</span> {formatDate(request.serviceInfo.preferredDate)}</p>
-                                  )}
                                   <div className="mt-2">
-                                    <p className="font-medium">Description:</p>
-                                    <p className="mt-1 text-muted-foreground">{request.serviceInfo.description}</p>
+                                    <p className="font-medium">{request.serviceInfo.message ? 'Customer Message:' : 'Description:'}</p>
+                                    <p className="mt-1 text-muted-foreground">
+                                      {request.serviceInfo.message || request.serviceInfo.description || 'No details provided'}
+                                    </p>
                                   </div>
+                                  {request.isSimplifiedRequest && (
+                                    <div className="mt-2 p-2 bg-blue-50 rounded text-xs text-blue-700">
+                                      <p><strong>Note:</strong> This is a simplified request. Vehicle details and complete service requirements will be collected during phone consultation.</p>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -195,27 +191,23 @@ const RepairRequestManager = () => {
                               <div>
                                 <h4 className="font-semibold mb-2">Customer Information</h4>
                                 <div className="space-y-2 text-sm">
-                                  <p className="flex items-center gap-2">
-                                    <Mail className="h-4 w-4" />
-                                    <a href={`mailto:${request.customerInfo.email}`} className="text-blue-600 hover:underline">
-                                      {request.customerInfo.email}
-                                    </a>
-                                  </p>
-                                  <p className="flex items-center gap-2">
-                                    <Phone className="h-4 w-4" />
-                                    <a href={`tel:${request.customerInfo.phone}`} className="text-blue-600 hover:underline">
-                                      {request.customerInfo.phone}
-                                    </a>
-                                  </p>
-                                  {request.customerInfo.address.street && (
-                                    <div className="pt-2">
-                                      <p className="font-medium">Address:</p>
-                                      <p>{request.customerInfo.address.street}</p>
-                                      <p>
-                                        {request.customerInfo.address.city && `${request.customerInfo.address.city}, `}
-                                        {request.customerInfo.address.state} {request.customerInfo.address.zipCode}
-                                      </p>
-                                    </div>
+                                  <p><span className="font-medium">Name:</span> {request.customerInfo.name}</p>
+                                  <p><span className="font-medium">Preferred Contact:</span> {request.contactMethod === 'phone' ? 'Phone' : 'Email'}</p>
+                                  {request.customerInfo.email && (
+                                    <p className="flex items-center gap-2">
+                                      <Mail className="h-4 w-4" />
+                                      <a href={`mailto:${request.customerInfo.email}`} className="text-blue-600 hover:underline">
+                                        {request.customerInfo.email}
+                                      </a>
+                                    </p>
+                                  )}
+                                  {request.customerInfo.phone && (
+                                    <p className="flex items-center gap-2">
+                                      <Phone className="h-4 w-4" />
+                                      <a href={`tel:${request.customerInfo.phone}`} className="text-blue-600 hover:underline">
+                                        {request.customerInfo.phone}
+                                      </a>
+                                    </p>
                                   )}
                                 </div>
                               </div>
@@ -245,7 +237,7 @@ const RepairRequestManager = () => {
                       </TableCell>
                     </TableRow>
                   )}
-                </>
+                </React.Fragment>
               ))}
             </TableBody>
           </Table>
