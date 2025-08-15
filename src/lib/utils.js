@@ -12,9 +12,9 @@ export function defineImagePath(imagePath) {
   // Base path for vehicle images
   const baseImagePath = '/images/vehicles/';
   
-  // If no image is provided, return the placeholder
+  // If no image is provided, return a proper placeholder
   if (!imagePath) {
-    return '/api/placeholder/400/300';
+    return '/images/placeholder-vehicle.svg';
   }
   
   // Return the full path

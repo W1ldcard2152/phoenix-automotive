@@ -158,8 +158,8 @@ export const apiClient = {
         // Handle both old format (array) and new format (paginated object)
         if (Array.isArray(result)) {
           return result; // Old format compatibility
-        } else if (result.data) {
-          return result; // New paginated format with metadata
+        } else if (result.data && Array.isArray(result.data)) {
+          return result.data; // Extract just the array from paginated response
         } else {
           return [];
         }

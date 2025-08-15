@@ -28,10 +28,9 @@ const DismantledVehicleManager = () => {
     try {
       setLoading(true);
       console.log('Attempting to fetch dismantled vehicles from admin...');
-      const result = await apiClient.dismantledVehicles.getAll({ limit: 50 }); // Get first 50
+      const data = await apiClient.dismantledVehicles.getAll({ limit: 50 }); // Get first 50
       
-      // Handle both old and new response formats
-      const data = Array.isArray(result) ? result : result.data || [];
+      // Data should now be an array (apiClient extracts it from pagination)
       console.log('Dismantled vehicles received:', data.length);
       setVehicles(data);
       setError(null);
