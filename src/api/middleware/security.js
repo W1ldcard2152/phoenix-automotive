@@ -32,8 +32,8 @@ export const securityHeaders = (req, res, next) => {
   // X-XSS-Protection
   res.setHeader('X-XSS-Protection', '1; mode=block');
   
-  // Referrer-Policy - Updated to be less restrictive
-  res.setHeader('Referrer-Policy', 'origin-when-cross-origin');
+  // Referrer-Policy - More restrictive to avoid Cloudinary warnings
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   
   // Permissions-Policy - Updated to allow some features
   res.setHeader(
